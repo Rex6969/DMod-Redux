@@ -1,0 +1,5 @@
+ENT.Base = "npc_dmod_imp2016"
+ENT.Type = "ai"
+ENT.PrintName = "Imp (DOOM Eternal)"
+ENT.Author = "Rex"
+ENT.Category = "DOOM"

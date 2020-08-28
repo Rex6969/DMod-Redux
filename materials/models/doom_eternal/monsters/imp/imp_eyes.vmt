@@ -1,0 +1,8 @@
+VertexLitGeneric
+{
+	$basetexture models\doom_eternal\monsters\imp\imp_eyes_c
+	$selfillummask models\doom_eternal\monsters\imp\imp_eyes_c
+	
+	$selfillum 1
+	$selfillumtint "[8 8 0]"
+}

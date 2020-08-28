@@ -5,5 +5,8 @@ CPTBase.RegisterMod("DMod I","in development")
 local Category = "DOOM"
 
 CPTBase.AddNPC("Imp","npc_dmod_imp2016", Category)
---CPTBase.AddNPC("Imp (DOOM Eternal)","npc_dmod_imp_eternal", Category)
+
+local Category = "DOOM Eternal"
+
+CPTBase.AddNPC("Imp (DOOM Eternal)","npc_dmod_imp_eternal", Category)
 

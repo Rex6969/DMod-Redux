@@ -1,0 +1,14 @@
+VertexLitGeneric
+{
+	$basetexture models\doom_eternal\monsters\imp\imp_arms_c
+	$bumpmap models\doom_eternal\monsters\imp\imp_arms_n
+	//$selfillummask models\doom\monsters\imp\imp_l
+	
+	$phong 1
+	$phongexponent 40
+	$phongfresnelranges	"[0.5 1.2 1.5]"
+	$phongboost	1
+	
+	//$selfillum 1
+	//$selfillumtint "[5 4 1]"
+}
