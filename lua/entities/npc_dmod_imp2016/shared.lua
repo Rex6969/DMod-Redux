@@ -1,5 +1,0 @@
-ENT.Base = "npc_dmod_base"
-ENT.Type = "ai"
-ENT.PrintName = "Imp"
-ENT.Author = "Rex"
-ENT.Category = "DOOM"
