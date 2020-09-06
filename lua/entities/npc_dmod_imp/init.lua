@@ -321,7 +321,6 @@ function ENT:RangedAttack( dist, enemy )
 					self.b_InChargeAttack = true
 					self.t_ChargeRelease = CurTime()+math.Rand(3,4)
 					self.t_NextRangedAttack = CurTime()+math.Rand(5,7)
-					sound.Play( "doom/monsters/imp/imp_charge.ogg",self:GetPos(), 80, math.random(98,102) ) 
 				
 					if math.random(1,2) == 1 then
 						self.i_ChargeAttackType = 1
@@ -509,6 +508,7 @@ function ENT:HandleEvents(...)
 			if not IsValid(self:GetEnemy()) then return true end
 			
 			ParticleEffectAttach("d_fireballfast",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_left"))
+			sound.Play( "doom/monsters/imp/imp_charge.ogg",self:GetPos(), 80, math.random(98,102) ) 
 			
 			return true
 		
@@ -517,6 +517,7 @@ function ENT:HandleEvents(...)
 			if not IsValid(self:GetEnemy()) then return true end
 			
 			ParticleEffectAttach("d_fireballfast",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_right"))
+			sound.Play( "doom/monsters/imp/imp_charge.ogg",self:GetPos(), 80, math.random(98,102) ) 
 			
 			return true
 		
@@ -600,16 +601,13 @@ end
 
 function ENT:Select_AIType()
 
-	self.i_Behavior = self:SelectFromTable({0,0,0,0,1,1,2})
+	self.i_Behavior = self:SelectFromTable({0,0,0,0,1,1,2,2})
 	
 	if self.i_Behavior == 1 then
 	
-		self.i_MeleeDmg = 9
 		self.i_CloseDist = 350
 	
 	elseif self.i_Behavior == 2 then
-	
-	print(self.i_Behavior)
 	
 	end
 
