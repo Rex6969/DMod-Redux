@@ -8,7 +8,7 @@ ENT.Skin = 0
 
 ENT.ViewAngle = 90
 ENT.StartHealth = 150
-ENT.ProcessingTime = 0.3
+ENT.ProcessingTime = 0.2
 
 -- AI 
 
@@ -19,7 +19,9 @@ ENT.i_Behavior = 0
 ENT.i_MeleeDmg = 8
 ENT.t_NextMeleeAttack = CurTime()
 
+ENT.b_InChargeAttack = false
 ENT.t_NextRangedAttack = CurTime()
+ENT.t_ChargeRelease = CurTime()
 
 ENT.t_NextWander = CurTime()
 ENT.t_NextPath = CurTime()
@@ -60,7 +62,7 @@ function ENT:SetInit()
 	--self:CapabilitiesAdd(bit.bor(CAP_MOVE_JUMP)) Not yet
 	self:CapabilitiesAdd(bit.bor(CAP_SQUAD))
 	
-	self:PlayActivity("spawn_teleport_"..math.random(1,5))
+	self:PlayActivity("spawn_teleport_1")
 	
 	self.t_NextIdleSound = CurTime() + math.Rand(3,8)
 	
@@ -72,12 +74,12 @@ end
 
 function ENT:OnThink()
 
-	if not self:CanPerformProcess() or self.IsPossessed then return end
+	if self.IsPossessed then return end
 
 	if IsValid(self:GetEnemy()) then
 
 		enemy = self:GetEnemy()
-		pos = self:GetEnemy():GetPos()
+		enemypos = self:GetEnemy():GetPos()
 		dist = self:FindCenterDistance(enemy)
 		nearest = self:GetClosestPoint(enemy)
 	
@@ -96,15 +98,19 @@ function ENT:OnThink()
 		
 		end
 		
-		if ( self.t_NextIdleSound < CurTime() ) and ( math.random(1,6) == 1 ) then
+		if ( self.t_NextIdleSound < CurTime() ) and ( math.random(1,8) == 1 ) then
 			
-			sound.Play( "doom/monsters/imp/imp_idle"..math.random(1,4)..".ogg",self:GetPos(), 75, math.random(98,102) ) 
+			sound.Play( "doom/monsters/imp/imp_idle"..math.random(1,4)..".ogg",self:GetPos(), 70, math.random(98,102) ) 
 			self.t_NextIdleSound = CurTime() + math.Rand(3,8)
 				
 		end 
 		
-		--self:SetIdleAnimation("idle_combat")
-		--self:SetWalkAnimation("walk_forward")
+		self:SetIdleAnimation("idle_combat")
+		self:SetWalkAnimation("walk_forward")
+		if not self:IsMoving() and self:CanPerformProcess() then
+			self:StartIdleAnimation()
+		end
+		
 		
 		self:SetMaxYawSpeed(20)
 		
@@ -129,31 +135,68 @@ function ENT:OnThink()
 		end
 		
 		return
-		
-	end
-	
-	-- Combat state
-	
-	if ( self:State(STATE_COMBAT)) then
-		
+
+	-- Combat state --
+
+	elseif ( self:State(STATE_COMBAT)) then
+		-- State change code
 		if not IsValid(enemy) then
 			self:SetState(STATE_IDLE)
 		end
-		
+		-- Idle sound
 		if ( self.t_NextIdleSound < CurTime() ) and ( math.random(1,6) == 1 ) then
 			
 			sound.Play( "doom/monsters/imp/imp_distant_short"..math.random(1,3)..".ogg",self:GetPos(), 75, math.random(98,102) ) 
 			self.t_NextIdleSound = CurTime() + math.Rand(3,8)
 				
 		end 
+		-- Turn code
+		
+		self:Turn(enemypos)
+		
+		-- Charge attack code
+		
+		if self.b_InChargeAttack then
+		
+			print("chargeattack_into")
+				
+			if self.i_ChargeAttackType == 1 then
+			
+				self:SetIdleAnimation("throw_fastball_1_cycle")
+				
+				if self.t_ChargeRelease < CurTime() and self:CanPerformProcess() then
+					self:PlayActivity("throw_fastball_1_out")
+					self.b_InChargeAttack = false
+				end
+			
+			elseif self.i_ChargeAttackType == 2 then
+			
+				self:SetIdleAnimation("throw_fastball_2_cycle")
+				
+				if self.t_ChargeRelease < CurTime() and self:CanPerformProcess() then
+					self:PlayActivity("throw_fastball_2_out")
+					self.b_InChargeAttack = false
+				end
+			
+			end
+			
+			return
+			
+		end
+		
+		self:SetIdleAnimation("idle_combat")
+		self:SetRunAnimation("run_all")
+		
+		if not self:IsMoving() and self:CanPerformProcess() then
+			self:StartIdleAnimation()
+		end
 		
 		self:MeleeAttack( dist, enemy )
-		
 		self:RangedAttack( dist, enemy )
 		
-		self:SetMaxYawSpeed(50)
+		self:SetMaxYawSpeed(90)
 		
-		if dist < self.i_CloseDist then
+		if dist < self.i_CloseDist or not self:Visible(enemy) then
 			
 			self:ChaseEnemy()
 			
@@ -167,7 +210,7 @@ function ENT:OnThink()
 				
 				self:TASKFUNC_RUNLASTPOSITION()
 				
-				self.t_NextPath = CurTime() + math.Rand(3,8)
+				self.t_NextPath = CurTime() + math.Rand(5,8)
 				
 				return
 			
@@ -179,65 +222,6 @@ function ENT:OnThink()
 		
 	end
 
-end
-
----------------------------------------------------------------------------------------------------------------------------------------------
--- Events
----------------------------------------------------------------------------------------------------------------------------------------------
-
-function ENT:HandleEvents(...)
-
-	local event = select(1,...)
-	
-	local arg1 = select(2,...)
-	
-	local arg2 = select(3,...)
-	
-	if (event == "sound") then
-	
-		sound.Play("doom/monsters/imp/"..tostring(arg1)..".ogg", self:GetPos(), 75, math.random(98,102))
-		return true
-		
-	elseif (event == "attack") then
-	
-		if (arg1 == "melee") then
-	
-			if not IsValid(self:GetEnemy()) then return true end
-			self:DoDamage(100,self.i_MeleeDmg,DMG_SLASH)
-			return true
-		
-		end
-		
-		if (arg1 == "ranged_left") then
-	
-			self:StopParticles()
-	
-			if not IsValid(self:GetEnemy()) then return true end
-			
-			sound.Play("doom/monsters/imp/fx_imp_fireball_launch_0"..math.random(1,3)..".ogg", self:GetPos(), 70, math.random(98,102))
-			
-			self:D_RangeAttack("ent_dmod_imp_projectile", "hand_left", 1.4, Vector(0,0,250) )
-			
-			return true
-		
-		end
-		
-		if (arg1 == "ranged_right") then
-	
-			self:StopParticles()
-	
-			if not IsValid(self:GetEnemy()) then return true end
-			
-			sound.Play("doom/monsters/imp/fx_imp_fireball_launch_0"..math.random(1,3)..".ogg", self:GetPos(), 70, math.random(98,102))
-			
-			self:D_RangeAttack("ent_dmod_imp_projectile", "hand_right", 1.4, Vector(0,0,250) )
-			
-			return true
-		
-		end
-	
-	end
-	
 end
 
 ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -259,6 +243,9 @@ end
 ---------------------------------------------------------------------------------------------------------------------------------------------
 
 function ENT:MeleeAttack(dist, enemy)
+		
+	if not self:CanPerformProcess() then return end
+	if not self:Visible(enemy) then return end
 		
 	if self.t_NextMeleeAttack < CurTime() then
 		
@@ -293,61 +280,131 @@ end
 -- Ranged Attack
 ---------------------------------------------------------------------------------------------------------------------------------------------
 
-
 function ENT:RangedAttack( dist, enemy )
 
-	if ( self.t_NextRangedAttack < CurTime() ) and ( dist > self.i_CloseDist ) then
+	if not self:CanPerformProcess() then return end
+
+	if ( self.t_NextRangedAttack < CurTime() ) and ( dist > self.i_CloseDist or dist > 2000 ) and not self.b_InChargeAttack then
 	
-		local str_RangedAnim
+		if not self:VisibleVec(enemy:GetPos() + enemy:OBBCenter() + Vector(0,0,30)) then return end
 	
 		local _ang = self:D_GetAngleTo(enemy:GetPos())
 			
-		if self:IsMoving() then
+		if ( self:IsMoving() ) and ( self:GetPos():Distance(self:GetLastPos()) > 300 ) and self:FindInCone(self:GetLastPos(), 90) then
 				
-			if self:FindInCone(enemy, 60) then
-					
-				str_RangedAnim = "throw_fromrun_forward"	
+			if self:FindInCone(enemy, 90) then
+				
+				self:PlayActivity("throw_fromrun_forward")
+				
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
-					
-			elseif _ang.y <= -70 and _ang.y > -135 then
 				
+			elseif _ang.y <= -90 and _ang.y > -135 then
 				-- Right
-				
-				str_RangedAnim = "throw_fromrun_right"
+				self:PlayActivity("throw_fromrun_right")
 				
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
-				self.t_NextPath = CurTime()+2
 				
-			elseif _ang.y >= 70 and _ang.y < 135 then 
-				
+			elseif _ang.y >= 90 and _ang.y < 135 then 
 				-- Left
-				
-				str_RangedAnim = "throw_fromrun_left"
+				self:PlayActivity("throw_fromrun_left")
 				
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
-				self.t_NextPath = CurTime()+2
 			
 			end
 				
 		else
-				
+			
 			if self:FindInCone(enemy, 70) then
 			
-				str_RangedAnim = self:SelectFromTable({"throw_1", "throw_2", "step_left_throw", "step_right_throw"})
+				if math.random(1,3) == 1 or ( dist > 1000 and math.random(1,2) == 1 ) then
+				
+					self.b_InChargeAttack = true
+					self.t_ChargeRelease = CurTime()+math.Rand(3,4)
+					self.t_NextRangedAttack = CurTime()+math.Rand(5,7)
+					sound.Play( "doom/monsters/imp/imp_charge.ogg",self:GetPos(), 80, math.random(98,102) ) 
+				
+					if math.random(1,2) == 1 then
+						self.i_ChargeAttackType = 1
+						self:PlayActivity("throw_fastball_1_into")
+					else
+						self.i_ChargeAttackType = 2
+						self:PlayActivity("throw_fastball_2_into")
+					end
+					
+				else
+				
+					self:PlayActivity(self:SelectFromTable({"throw_1", "throw_2", "step_left_throw", "step_right_throw"}))
+					
+				end
 				
 			end
 		
 		end
 		
-		if not str_RangedAnim then return end
-
-		self:PlayActivity(str_RangedAnim)
-		self.t_NextRangedAttack = CurTime()+math.Rand( 2,5 )
-		
 	end
 
-	
+end
 
+---------------------------------------------------------------------------------------------------------------------------------------------
+-- Ranged Attack
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+function ENT:InterruptCharge()
+
+	if not self.b_InChargeAttack then return end
+	
+	self:StopParticles()
+	self.b_InChargeAttack = false
+	self.t_NextRangedAttack = math.Rand(0,2)
+
+end
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+-- Turning code
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+function ENT:Turn(enemypos)
+	
+	if not self:CanPerformProcess() then return end
+	if not self:VisibleVec(enemypos) then return end
+	
+	if not self:IsMoving() then
+	
+		if not self:FindInCone(enemypos, 90) and math.random(1,3) == 1 then
+		
+			local _ang = self:D_GetAngleTo(enemypos)
+			
+			if _ang.y <= -70 then
+				-- Right	
+				self:PlayActivity("turn_right_90")
+				
+				self:InterruptCharge()
+					
+			elseif _ang.y >= 70 then 
+				-- Left
+				self:PlayActivity("turn_left_90")
+				
+				self:InterruptCharge()
+				
+			end
+			
+		end
+		
+	else
+		
+		if not self:FindInCone(enemypos, 90) then
+
+			self:ClearPoseParameters()
+			UseDefaultPoseParameters = false
+
+		else
+		
+			UseDefaultPoseParameters = false
+
+		end		
+		
+	end
+	
 end
 
 ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -382,7 +439,7 @@ function ENT:RecomputeSurroundPath(ent, _min, _max)
 				
 				_bestpoint = _endpos
 				
-				if LOSCheck or math.random(1,5) == 1 then
+				if LOSCheck or math.random(1,10) == 1 then
 				
 					_returnpos = _endpos
 					break
@@ -410,6 +467,131 @@ function ENT:RecomputeSurroundPath(ent, _min, _max)
 	
 	return _returnpos
 
+end
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+-- Events
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+function ENT:HandleEvents(...)
+
+	local event = select(1,...)
+	
+	local arg1 = select(2,...)
+	
+	local arg2 = select(3,...)
+	
+	if (event == "sound") then
+	
+		sound.Play("doom/monsters/imp/"..tostring(arg1)..".ogg", self:GetPos(), 75, math.random(98,102))
+		return true
+		
+	elseif (event == "emit") then
+	
+		if (arg1 == "fireball_left") then
+	
+			if not IsValid(self:GetEnemy()) then return true end
+			
+			ParticleEffectAttach("d_fireball",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_left"))
+			
+			return true
+		
+		elseif (arg1 == "fireball_right") then
+	
+			if not IsValid(self:GetEnemy()) then return true end
+			
+			ParticleEffectAttach("d_fireball",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_right"))
+			
+			return true
+			
+		elseif (arg1 == "fireball_special_left") then
+	
+			if not IsValid(self:GetEnemy()) then return true end
+			
+			ParticleEffectAttach("d_fireballfast",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_left"))
+			
+			return true
+		
+		elseif (arg1 == "fireball_special_right") then
+	
+			if not IsValid(self:GetEnemy()) then return true end
+			
+			ParticleEffectAttach("d_fireballfast",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_right"))
+			
+			return true
+		
+		end
+		
+	elseif (event == "attack") then
+	
+		if (arg1 == "melee") then
+	
+			if not IsValid(self:GetEnemy()) then return true end
+			self:DoDamage(100,self.i_MeleeDmg,DMG_SLASH)
+			return true
+		
+		elseif (arg1 == "ranged_left") then
+	
+			self:StopParticles()
+	
+			if not IsValid(self:GetEnemy()) then return true end
+			
+			sound.Play("doom/monsters/imp/fx_imp_fireball_launch"..math.random(1,3)..".ogg", self:GetPos(), 70, math.random(98,102))
+			
+			self:D_RangeAttack("ent_dmod_imp_projectile", "hand_left", 1.4, Vector(0,0,250) )
+			
+			return true
+		
+		elseif (arg1 == "ranged_right") then
+	
+			self:StopParticles()
+	
+			if not IsValid(self:GetEnemy()) then return true end
+			
+			sound.Play("doom/monsters/imp/fx_imp_fireball_launch"..math.random(1,3)..".ogg", self:GetPos(), 70, math.random(98,102))
+			
+			self:D_RangeAttack("ent_dmod_imp_projectile", "hand_right", 1.4, Vector(0,0,250) )
+			
+			return true
+			
+		elseif (arg1 == "ranged_special_left") then
+	
+			self:StopParticles()
+	
+			if not IsValid(self:GetEnemy()) then return true end
+			
+			sound.Play("doom/monsters/imp/fx_imp_fireball_launch"..math.random(1,3)..".ogg", self:GetPos(), 70, math.random(98,102))
+			
+			self:D_RangeAttack("ent_dmod_imp_projectile_fast", "hand_left", 1, Vector(0,0,0) )
+			
+			return true
+		
+		elseif (arg1 == "ranged_special_right") then
+	
+			self:StopParticles()
+	
+			if not IsValid(self:GetEnemy()) then return true end
+			
+			sound.Play("doom/monsters/imp/fx_imp_fireball_launch"..math.random(1,3)..".ogg", self:GetPos(), 70, math.random(98,102))
+			
+			self:D_RangeAttack("ent_dmod_imp_projectile_fast", "hand_right", 1, Vector(0,0,0) )
+			
+			return true
+		
+		end
+		
+	elseif (event == "util") then
+	
+		if (arg1 == "run") then
+		
+			self:TASKFUNC_RUNLASTPOSITION()
+			
+			return true
+		
+		end
+	
+	end
+	
 end
 
 ---------------------------------------------------------------------------------------------------------------------------------------------

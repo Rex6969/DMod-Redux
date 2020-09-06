@@ -3,6 +3,7 @@ ENT.Type = "ai"
 ENT.PrintName = "Imp"
 ENT.Author = "Rex"
 ENT.Category = "DOOM"
+ENT.RenderGroup = RENDERGROUP_OPAQUE
 
 if not (CLIENT) then return end
 

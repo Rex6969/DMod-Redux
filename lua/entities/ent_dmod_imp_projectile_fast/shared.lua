@@ -1,6 +1,6 @@
 ENT.Type			= "anim"
 ENT.Base 			= "obj_cpt_base"
-ENT.PrintName		= "Imp Fireball"
+ENT.PrintName		= "Imp Fast Fireball"
 ENT.Author			= "REXMaster"
 ENT.RenderGroup 	= RENDERGROUP_TRANSLUCENT
 

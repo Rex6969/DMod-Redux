@@ -82,7 +82,9 @@ function ENT:D_RangeAttack(proj, att, forcemul, vector)
 	local phys = fireball:GetPhysicsObject()
 	
 	if IsValid(phys) then
-		phys:SetVelocity(self:SetUpRangeAttackTarget()*forcemul +self:GetUp() * vector)
+	
+		phys:SetVelocity(self:SetUpRangeAttackTarget()* forcemul + vector)
+		
 	end
 	
 end
@@ -94,3 +96,4 @@ end
 function ENT:HandleSchedules()
 end
 
+--Idk lol
