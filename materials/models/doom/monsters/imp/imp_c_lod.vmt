@@ -1,8 +1,0 @@
-VertexLitGeneric
-{
-	$basetexture models\doom\monsters\imp\imp_c
-	$selfillummask models\doom\monsters\imp\imp_l
-	
-	$selfillum 1
-	$selfillumtint "[5 4 1]"
-}

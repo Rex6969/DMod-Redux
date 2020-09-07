@@ -1,12 +1,13 @@
 if !CPTBase or (CLIENT) then return end
 
+AddCSLuaFile('init.lua')
 AddCSLuaFile('shared.lua')
 include('shared.lua')
 
 ENT.Model = "models/doom/monsters/imp/imp.mdl"
 ENT.Skin = 0
 
-ENT.ViewAngle = 90
+ENT.ViewAngle = 120
 ENT.StartHealth = 150
 ENT.ProcessingTime = 0.2
 
@@ -52,17 +53,11 @@ function ENT:SetInit()
 	
 	self:SetNoDraw(false)
 
-	self:SetIdleAnimation("idle_combat")
-	self:SetRunAnimation("run_all")
-	self:SetWalkAnimation("walk_forward")
-
-	self:SetState(NPC_STATE_IDLE)
+	self:SetState(STATE_NONE)
 	self:Select_AIType()
 	
 	--self:CapabilitiesAdd(bit.bor(CAP_MOVE_JUMP)) Not yet
 	self:CapabilitiesAdd(bit.bor(CAP_SQUAD))
-	
-	self:PlayActivity("spawn_teleport_1")
 	
 	self.t_NextIdleSound = CurTime() + math.Rand(3,8)
 	
@@ -88,6 +83,15 @@ function ENT:OnThink()
 	debugoverlay.Box(self:GetPos(),Vector(-18,-18,1),Vector(18,18,55),0.15,Color(255,255,255,0))
 	debugoverlay.Sphere(self:GetCurWaypointPos(),5,5,Color(255,255,0,0))
 	
+	if ( self:State(STATE_NONE) ) then
+	
+		self:PlayActivity("spawn_teleport_"..math.random(1,5))
+		self:SetState(STATE_IDLE)
+		
+		self.t_NextPath = CurTime() + math.Rand(2,5)
+	
+	end	
+	
 	-- Idle state
 
 	if ( self:State(STATE_IDLE) ) then
@@ -107,25 +111,18 @@ function ENT:OnThink()
 		
 		self:SetIdleAnimation("idle_combat")
 		self:SetWalkAnimation("walk_forward")
-		if not self:IsMoving() and self:CanPerformProcess() then
-			self:StartIdleAnimation()
-		end
 		
-		
+		self:StopParticles()
 		self:SetMaxYawSpeed(20)
 		
 		if ( !self:IsMoving() ) and self.t_NextWander < CurTime() then
-		
-			self:SetLastPos( self:RecomputeSurroundPath(self,400,600) )
 					
 			timer.Simple( 2, function()
-					
-				--print("recomputed wander path")
 				
 				if not IsValid(self) then return end
 					
 				if ( self:GetNPCState() == NPC_STATE_IDLE ) or ( self:GetNPCState() == NPC_STATE_ALERT ) then
-					self:TASKFUNC_WALKLASTPOSITION()
+					self:TASKFUNC_WANDER()
 				end
 				
 			end )
@@ -133,8 +130,6 @@ function ENT:OnThink()
 			return
 		
 		end
-		
-		return
 
 	-- Combat state --
 
@@ -156,9 +151,7 @@ function ENT:OnThink()
 		
 		-- Charge attack code
 		
-		if self.b_InChargeAttack then
-		
-			print("chargeattack_into")
+		if self.b_InChargeAttack and self:CanPerformProcess() then
 				
 			if self.i_ChargeAttackType == 1 then
 			
@@ -187,10 +180,6 @@ function ENT:OnThink()
 		self:SetIdleAnimation("idle_combat")
 		self:SetRunAnimation("run_all")
 		
-		if not self:IsMoving() and self:CanPerformProcess() then
-			self:StartIdleAnimation()
-		end
-		
 		self:MeleeAttack( dist, enemy )
 		self:RangedAttack( dist, enemy )
 		
@@ -217,8 +206,6 @@ function ENT:OnThink()
 			end
 			
 		end
-		
-		return
 		
 	end
 
@@ -253,7 +240,7 @@ function ENT:MeleeAttack(dist, enemy)
 			
 			self:TASKFUNC_FACEPOSITION(enemy:GetPos())
 			
-			if self:FindInCone(enemy,60) then
+			if self:FindInCone(enemy,70) then
 				
 				self:PlayActivity(self:SelectFromTable({"melee_forward_1","melee_forward_2"}))
 				self.t_NextMeleeAttack = CurTime() + math.Rand(0,1)
@@ -263,7 +250,7 @@ function ENT:MeleeAttack(dist, enemy)
 			end
 			
 			
-		elseif dist < 200 and self:IsMoving() and self:FindInCone(enemy,15) then
+		elseif dist < 200 and self:IsMoving() and self:FindInCone(enemy,40) then
 			
 			self:PlayActivity(self:SelectFromTable({"melee_moving_1","melee_moving_2"}))
 			self.t_NextMeleeAttack = CurTime() + math.Rand(1,2)
@@ -294,20 +281,17 @@ function ENT:RangedAttack( dist, enemy )
 				
 			if self:FindInCone(enemy, 90) then
 				
-				self:PlayActivity("throw_fromrun_forward")
-				
+				self:PlayNPCGesture("throw_fromrun_forward",2,0.6)
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
 				
 			elseif _ang.y <= -90 and _ang.y > -135 then
 				-- Right
-				self:PlayActivity("throw_fromrun_right")
-				
+				self:PlayNPCGesture("throw_fromrun_right",2,0.6)
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
 				
 			elseif _ang.y >= 90 and _ang.y < 135 then 
 				-- Left
-				self:PlayActivity("throw_fromrun_left")
-				
+				self:PlayNPCGesture("throw_fromrun_left",2,0.6)
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
 			
 			end
@@ -365,7 +349,7 @@ end
 function ENT:Turn(enemypos)
 	
 	if not self:CanPerformProcess() then return end
-	if not self:VisibleVec(enemypos) then return end
+	if not self:VisibleVec(enemypos) then self:InterruptCharge() return end
 	
 	if not self:IsMoving() then
 	
@@ -407,6 +391,61 @@ function ENT:Turn(enemypos)
 end
 
 ---------------------------------------------------------------------------------------------------------------------------------------------
+-- Table containing information about gibs and stuff
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+local dir = "models/doom/monsters/imp/gibs/death1_"
+
+ENT.GoreTable = {
+[0]={ 
+		{
+			["LeftArm"] = "arm_left.mdl", 
+			["RightArm"] = "arm_right.mdl", 
+			["LeftUpLeg"] = "leg_left.mdl", 
+			["Hips"] = "leg_right.mdl", 
+			["LeftClav"] = "body_left.mdl", 
+			["RightClav"] = "body_right.mdl"
+		}
+		
+	},
+		
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+-- Gore func
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+function ENT:BeforeDoDeath(dmg,dmginfo,_Attacker,_Type,_Pos,_Force,_Inflictor,_Hitbox)
+
+	--print(_Hitbox)
+	--local bone = self:GetHitBoxBone(_Hitbox)
+	local _hittable = self.GoreTable[0]
+	
+	for k,v in pairs(_hittable[1]) do
+		self.gib = ents.Create("ent_doom_gib")
+		self.gib:SetPos( self:GetBonePosition( self:LookupBone( k ) ) )
+		self.gib:SetAngles( self:GetAngles() + AngleRand(-30,-30) )
+		self.gib:SetOwner(self)
+		self.gib:SetModel(dir..v)
+		
+		self.gib:Spawn()
+		self.gib:Activate()
+
+		local phys = self.gib:GetPhysicsObject()
+		if IsValid(phys) then
+			phys:SetVelocity( VectorRand()*80 + self:GetUp()*100 + dmg:GetDamageForce():GetNormalized()*math.random(150,250) )
+		end
+		
+	end
+	
+	
+	self.HasDeathRagdoll = false
+	self:Remove()
+	
+	return true
+end
+
+---------------------------------------------------------------------------------------------------------------------------------------------
 -- This function generates new point around the enemy, within _min and _max distances
 ---------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -432,7 +471,7 @@ function ENT:RecomputeSurroundPath(ent, _min, _max)
 		if _trace.HitWorld then
 		
 			local _endpos = _trace.HitPos
-			local LOSCheck = ent:VisibleVec(_endpos + Vector(0,0,50))
+			local LOSCheck = ent:VisibleVec(_startpos + Vector(0,0,50))
 			
 			if ( self:GetPos():DistToSqr(_endpos) > ( 400*400 ) ) then
 				
@@ -491,7 +530,7 @@ function ENT:HandleEvents(...)
 	
 			if not IsValid(self:GetEnemy()) then return true end
 			
-			ParticleEffectAttach("d_fireball",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_left"))
+			ParticleEffectAttach("d_fireball_notrail",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_left"))
 			
 			return true
 		
@@ -499,7 +538,7 @@ function ENT:HandleEvents(...)
 	
 			if not IsValid(self:GetEnemy()) then return true end
 			
-			ParticleEffectAttach("d_fireball",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_right"))
+			ParticleEffectAttach("d_fireball_notrail",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_right"))
 			
 			return true
 			
@@ -563,7 +602,7 @@ function ENT:HandleEvents(...)
 			
 			sound.Play("doom/monsters/imp/fx_imp_fireball_launch"..math.random(1,3)..".ogg", self:GetPos(), 70, math.random(98,102))
 			
-			self:D_RangeAttack("ent_dmod_imp_projectile_fast", "hand_left", 1, Vector(0,0,0) )
+			self:D_RangeAttack("ent_dmod_imp_projectile_fast", "hand_left", 1.2, Vector(0,0,0) )
 			
 			return true
 		
@@ -575,7 +614,7 @@ function ENT:HandleEvents(...)
 			
 			sound.Play("doom/monsters/imp/fx_imp_fireball_launch"..math.random(1,3)..".ogg", self:GetPos(), 70, math.random(98,102))
 			
-			self:D_RangeAttack("ent_dmod_imp_projectile_fast", "hand_right", 1, Vector(0,0,0) )
+			self:D_RangeAttack("ent_dmod_imp_projectile_fast", "hand_right", 1.2, Vector(0,0,0) )
 			
 			return true
 		
