@@ -22,7 +22,11 @@ function ENT:CustomEffects()
 	
 	self:DeleteOnRemove(self.StartLight1)
 	
-	--self:SetModelScale(2)
+	if GetConVar("cpt_aidifficulty"):GetInt() > 1 then
+		self.Damage = self.Damage * ( GetConVar("cpt_aidifficulty"):GetInt() - 1 )
+	else
+		self.Damage = self.Damage * 0.5
+	end
 	
 end
 

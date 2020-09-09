@@ -24,6 +24,11 @@ ENT.b_InChargeAttack = false
 ENT.t_NextRangedAttack = CurTime()
 ENT.t_ChargeRelease = CurTime()
 
+ENT.b_Staggered = false
+ENT.t_NextPain = CurTime()
+
+ENT.b_PlayedSpawnAnim = false
+
 ENT.t_NextWander = CurTime()
 ENT.t_NextPath = CurTime()
 
@@ -61,6 +66,8 @@ function ENT:SetInit()
 	
 	self.t_NextIdleSound = CurTime() + math.Rand(3,8)
 	
+	self:SetHealth(self.StartHealth)
+	
 end
 
 ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -83,10 +90,12 @@ function ENT:OnThink()
 	debugoverlay.Box(self:GetPos(),Vector(-18,-18,1),Vector(18,18,55),0.15,Color(255,255,255,0))
 	debugoverlay.Sphere(self:GetCurWaypointPos(),5,5,Color(255,255,0,0))
 	
-	if ( self:State(STATE_NONE) ) then
+	if self.b_PlayedSpawnAnim == false then
 	
 		self:PlayActivity("spawn_teleport_"..math.random(1,5))
 		self:SetState(STATE_IDLE)
+		
+		self.b_PlayedSpawnAnim = true
 		
 		self.t_NextPath = CurTime() + math.Rand(2,5)
 	
@@ -134,6 +143,31 @@ function ENT:OnThink()
 	-- Combat state --
 
 	elseif ( self:State(STATE_COMBAT)) then
+	
+		if self:GetNWBool("Gloryable", false) then
+		
+			if not self.b_Staggered then
+				self:ClearSchedule()
+				self:StopParticles()
+				self:PlayActivity("stagger_into")
+				
+				self.b_Staggered = true
+			end
+			
+			self:SetIdleAnimation("stagger_loop")
+			
+			return
+			
+		else
+		
+			if self.b_Staggered then
+				self:PlayActivity("stagger_out")
+				self.b_Staggered = false
+			end
+			
+		end
+	
+	
 		-- State change code
 		if not IsValid(enemy) then
 			self:SetState(STATE_IDLE)
@@ -281,17 +315,17 @@ function ENT:RangedAttack( dist, enemy )
 				
 			if self:FindInCone(enemy, 90) then
 				
-				self:PlayNPCGesture("throw_fromrun_forward",2,0.6)
+				self:PlayNPCGesture("throw_fromrun_forward",2,0.5)
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
 				
-			elseif _ang.y <= -90 and _ang.y > -135 then
+			elseif _ang.y <= -120 and _ang.y > -160 then
 				-- Right
-				self:PlayNPCGesture("throw_fromrun_right",2,0.6)
+				self:PlayNPCGesture("throw_fromrun_right",2,0.5)
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
 				
-			elseif _ang.y >= 90 and _ang.y < 135 then 
+			elseif _ang.y >= 120 and _ang.y < 160 then 
 				-- Left
-				self:PlayNPCGesture("throw_fromrun_left",2,0.6)
+				self:PlayNPCGesture("throw_fromrun_left",2,0.5)
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
 			
 			end
@@ -317,6 +351,7 @@ function ENT:RangedAttack( dist, enemy )
 				else
 				
 					self:PlayActivity(self:SelectFromTable({"throw_1", "throw_2", "step_left_throw", "step_right_throw"}))
+					self.t_NextRangedAttack = CurTime()+math.Rand(1,3)
 					
 				end
 				
@@ -338,7 +373,7 @@ function ENT:InterruptCharge()
 	
 	self:StopParticles()
 	self.b_InChargeAttack = false
-	self.t_NextRangedAttack = math.Rand(0,2)
+	self.t_NextRangedAttack = math.Rand(1,3)
 
 end
 
@@ -391,58 +426,112 @@ function ENT:Turn(enemypos)
 end
 
 ---------------------------------------------------------------------------------------------------------------------------------------------
--- Table containing information about gibs and stuff
+-- Pain function
 ---------------------------------------------------------------------------------------------------------------------------------------------
 
-local dir = "models/doom/monsters/imp/gibs/death1_"
+ENT.PainDamage = 50
 
-ENT.GoreTable = {
-[0]={ 
-		{
-			["LeftArm"] = "arm_left.mdl", 
-			["RightArm"] = "arm_right.mdl", 
-			["LeftUpLeg"] = "leg_left.mdl", 
-			["Hips"] = "leg_right.mdl", 
-			["LeftClav"] = "body_left.mdl", 
-			["RightClav"] = "body_right.mdl"
-		}
+function ENT:OnDamage_Pain(dmg,dmginfo,_Hitbox)
+
+	if self.b_Staggered then return end
+
+	if self.t_NextPain < CurTime() then
+	
+		local _can = false
 		
-	},
+		if ( self:CanPerformProcess() and not self:IsMoving() and not self.b_InChargeAttack ) and math.random(1,3) == 1 then
+		
+			_can = true
+			
+		elseif ( dmg:GetDamage() > self.PainDamage or dmginfo:GetDamageType() == DMG_BLAST ) and math.random (1,5) ~= 1 then
+		
+			_can = true
+			
+		elseif math.random(1,5) == 1 then
+		
+			_can = true
+		
+		end
+		
+		if not _can then return end
+		
+		self:StopParticles()
+		
+		local _painanim = ""
+		-- Selectiong right anim
+		
+		local _inflictor = dmg:GetInflictor()
+		local _dir = self:D_DirectionTo(_inflictor:GetPos())
+		
+		if _dir == "forward" then
+			
+			if _Hitbox == 2 or _Hitbox == 3 then
+				_painanim = "falter_chest"
+			elseif _Hitbox == 4 then
+				_painanim = "falter_leftarm"
+			elseif _Hitbox == 5 then
+				_painanim = "falter_rightarm"
+			elseif _Hitbox == 6 then
+				_painanim = "falter_leftleg"
+			elseif _Hitbox == 7 then
+				_painanim = "falter_rightleg"
+			elseif _Hitbox == 8 then
+				_painanim = "falter_head"
+			else
+				_painanim = "falter_chest"
+			end
+			
+		elseif _dir == "left" then
+			_painanim = "falter_left_upper"
+		elseif _dir == "back" then
+			_painanim = "falter_back"
+		end
+		
+		if _painanim == "" then return end
+		
+		self.b_InChargeAttack = false
+		
+		-- Animation itself
+		self:PlayActivity(_painanim)
+		
+		self.t_NextPain = CurTime()+math.Rand(3,5)
+	
+	end
+
+end
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+-- Death func
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+local directory = "models/doom/monsters/imp/gibs/death1_"
+
+ENT.GibTable = {
+		{
+			["LeftArm"] = directory.."arm_left.mdl", 
+			["RightArm"] = directory.."arm_right.mdl", 
+			["LeftUpLeg"] = directory.."leg_left.mdl", 
+			["Hips"] = directory.."leg_right.mdl", 
+			["LeftClav"] = directory.."body_left.mdl", 
+			["RightClav"] = directory.."body_right.mdl"
+		}
 		
 }
 
----------------------------------------------------------------------------------------------------------------------------------------------
--- Gore func
----------------------------------------------------------------------------------------------------------------------------------------------
+ENT.GibDamage = 120
 
 function ENT:BeforeDoDeath(dmg,dmginfo,_Attacker,_Type,_Pos,_Force,_Inflictor,_Hitbox)
 
-	--print(_Hitbox)
-	--local bone = self:GetHitBoxBone(_Hitbox)
-	local _hittable = self.GoreTable[0]
+	if dmg:GetDamage() > self.GibDamage or self.b_Staggered or _Type == DMG_BLAST then
 	
-	for k,v in pairs(_hittable[1]) do
-		self.gib = ents.Create("ent_doom_gib")
-		self.gib:SetPos( self:GetBonePosition( self:LookupBone( k ) ) )
-		self.gib:SetAngles( self:GetAngles() + AngleRand(-30,-30) )
-		self.gib:SetOwner(self)
-		self.gib:SetModel(dir..v)
-		
-		self.gib:Spawn()
-		self.gib:Activate()
-
-		local phys = self.gib:GetPhysicsObject()
-		if IsValid(phys) then
-			phys:SetVelocity( VectorRand()*80 + self:GetUp()*100 + dmg:GetDamageForce():GetNormalized()*math.random(150,250) )
-		end
-		
+		self:D_Gib(self.GibTable,dmg)
+	
+	else
+	
+		return true
+	
 	end
-	
-	
-	self.HasDeathRagdoll = false
-	self:Remove()
-	
-	return true
+
 end
 
 ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -546,7 +635,7 @@ function ENT:HandleEvents(...)
 	
 			if not IsValid(self:GetEnemy()) then return true end
 			
-			ParticleEffectAttach("d_fireballfast",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_left"))
+			ParticleEffectAttach("d_fireballcharge",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_left"))
 			sound.Play( "doom/monsters/imp/imp_charge.ogg",self:GetPos(), 80, math.random(98,102) ) 
 			
 			return true
@@ -555,7 +644,7 @@ function ENT:HandleEvents(...)
 	
 			if not IsValid(self:GetEnemy()) then return true end
 			
-			ParticleEffectAttach("d_fireballfast",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_right"))
+			ParticleEffectAttach("d_fireballcharge",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_right"))
 			sound.Play( "doom/monsters/imp/imp_charge.ogg",self:GetPos(), 80, math.random(98,102) ) 
 			
 			return true
@@ -602,7 +691,7 @@ function ENT:HandleEvents(...)
 			
 			sound.Play("doom/monsters/imp/fx_imp_fireball_launch"..math.random(1,3)..".ogg", self:GetPos(), 70, math.random(98,102))
 			
-			self:D_RangeAttack("ent_dmod_imp_projectile_fast", "hand_left", 1.2, Vector(0,0,0) )
+			self:D_RangeAttack_Normalized("ent_dmod_imp_projectile_fast", "hand_left", 2000, Vector(0,0,0) )
 			
 			return true
 		
@@ -614,7 +703,7 @@ function ENT:HandleEvents(...)
 			
 			sound.Play("doom/monsters/imp/fx_imp_fireball_launch"..math.random(1,3)..".ogg", self:GetPos(), 70, math.random(98,102))
 			
-			self:D_RangeAttack("ent_dmod_imp_projectile_fast", "hand_right", 1.2, Vector(0,0,0) )
+			self:D_RangeAttack_Normalized("ent_dmod_imp_projectile_fast", "hand_right", 2000, Vector(0,0,0) )
 			
 			return true
 		

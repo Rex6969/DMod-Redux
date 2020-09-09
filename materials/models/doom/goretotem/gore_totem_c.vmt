@@ -1,0 +1,10 @@
+VertexLitGeneric
+{
+	$basetexture models\doom\goretotem\gore_totem_c
+	$bumpmap models\doom\goretotem\gore_totem_n
+	
+	$phong 1
+	$phongexponent 40
+	$phongfresnelranges	"[0.5 1.2 1.5]"
+	$phongboost	1
+}
