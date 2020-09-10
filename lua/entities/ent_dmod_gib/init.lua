@@ -38,6 +38,8 @@ function ENT:Initialize()
 		self:EmitSound("d4t/sfx_gore_big"..math.random(1,7)..".ogg",70,100,0.3)
 	end
 	
+	util.Decal("Blood", self:GetPos() + Vector(0,0,80), self:GetPos() )
+	
 	self.CanFade = true
 	self.RemoveTime = CurTime() + math.Rand(7,10)
 	

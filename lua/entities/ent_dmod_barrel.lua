@@ -26,7 +26,7 @@ function ENT:OnTakeDamage(dmg,hitgroup,dmginfo)
 	end
  end
  
- function self:Explode(_Attacker)
+ function ENT:Explode(_Attacker)
  
 	util.BlastDamage(self,_Attacker,self:GetPos(),80,self.Damage)
 	

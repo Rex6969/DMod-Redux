@@ -7,9 +7,12 @@ include('shared.lua')
 ENT.Model = "models/doom/monsters/imp/imp.mdl"
 ENT.Skin = 0
 
-ENT.ViewAngle = 120
+ENT.ViewAngle = 180 -- You can't hide!
+ENT.MeleeAngle = 120
 ENT.StartHealth = 150
 ENT.ProcessingTime = 0.2
+
+ENT.MeleeAngle = 90
 
 -- AI 
 
@@ -60,6 +63,10 @@ function ENT:SetInit()
 
 	self:SetState(STATE_NONE)
 	self:Select_AIType()
+	
+	self:SetIdleAnimation("idle_combat")
+	self:SetWalkAnimation("walk_forward")
+	self:SetRunAnimation("run_all")
 	
 	--self:CapabilitiesAdd(bit.bor(CAP_MOVE_JUMP)) Not yet
 	self:CapabilitiesAdd(bit.bor(CAP_SQUAD))
@@ -167,7 +174,6 @@ function ENT:OnThink()
 			
 		end
 	
-	
 		-- State change code
 		if not IsValid(enemy) then
 			self:SetState(STATE_IDLE)
@@ -223,6 +229,8 @@ function ENT:OnThink()
 			
 			self:ChaseEnemy()
 			
+			self.t_NextPath = CurTime() + math.Rand(1,2)
+			
 		end
 		
 		if ( self.t_NextPath < CurTime() ) then
@@ -233,7 +241,7 @@ function ENT:OnThink()
 				
 				self:TASKFUNC_RUNLASTPOSITION()
 				
-				self.t_NextPath = CurTime() + math.Rand(5,8)
+				self.t_NextPath = CurTime() + math.Rand(3,5)
 				
 				return
 			
@@ -274,7 +282,7 @@ function ENT:MeleeAttack(dist, enemy)
 			
 			self:TASKFUNC_FACEPOSITION(enemy:GetPos())
 			
-			if self:FindInCone(enemy,70) then
+			if self:FindInCone(enemy,60) then
 				
 				self:PlayActivity(self:SelectFromTable({"melee_forward_1","melee_forward_2"}))
 				self.t_NextMeleeAttack = CurTime() + math.Rand(0,1)
@@ -284,7 +292,7 @@ function ENT:MeleeAttack(dist, enemy)
 			end
 			
 			
-		elseif dist < 200 and self:IsMoving() and self:FindInCone(enemy,40) then
+		elseif dist < 200 and self:IsMoving() and self:FindInCone(enemy,30) then
 			
 			self:PlayActivity(self:SelectFromTable({"melee_moving_1","melee_moving_2"}))
 			self.t_NextMeleeAttack = CurTime() + math.Rand(1,2)
@@ -313,17 +321,17 @@ function ENT:RangedAttack( dist, enemy )
 			
 		if ( self:IsMoving() ) and ( self:GetPos():Distance(self:GetLastPos()) > 300 ) and self:FindInCone(self:GetLastPos(), 90) then
 				
-			if self:FindInCone(enemy, 90) then
+			if self:FindInCone(enemy, 135) then
 				
 				self:PlayNPCGesture("throw_fromrun_forward",2,0.5)
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
 				
-			elseif _ang.y <= -120 and _ang.y > -160 then
+			elseif _ang.y <= -90 and _ang.y > -160 then
 				-- Right
 				self:PlayNPCGesture("throw_fromrun_right",2,0.5)
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
 				
-			elseif _ang.y >= 120 and _ang.y < 160 then 
+			elseif _ang.y >= 90 and _ang.y < 160 then 
 				-- Left
 				self:PlayNPCGesture("throw_fromrun_left",2,0.5)
 				self.t_NextRangedAttack = CurTime()+math.Rand(3,5)
@@ -488,11 +496,10 @@ function ENT:OnDamage_Pain(dmg,dmginfo,_Hitbox)
 		end
 		
 		if _painanim == "" then return end
-		
 		self.b_InChargeAttack = false
 		
-		-- Animation itself
 		self:PlayActivity(_painanim)
+		sound.Play("doom/monsters/imp/imp_hurt"..math.random(1,3)..".ogg", self:GetPos(), 75, math.random(98,102))
 		
 		self.t_NextPain = CurTime()+math.Rand(3,5)
 	
@@ -532,6 +539,29 @@ function ENT:BeforeDoDeath(dmg,dmginfo,_Attacker,_Type,_Pos,_Force,_Inflictor,_H
 	
 	end
 
+end
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+-- Pose parameter handling
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+function ENT:PoseParameters()
+
+	self:D_MoveBlend(self:GetNextWaypointPos(),"move_yaw",3,true)
+
+	-- Looking
+	self:CheckPoseParameters()
+	if self.IsPossessed then
+		self:LookAtPosition(self:Possess_EyeTrace(self.Possessor).HitPos,{"aim_pitch","aim_yaw","head_pitch","head_yaw"},10)
+	else
+	
+		self:D_MoveBlend(self:GetNextWaypointPos(),"move_yaw",3,false)
+	
+		if IsValid(self:GetEnemy()) then
+			--self:LookAtPosition(self:FindHeadPosition(self:GetEnemy()),{"head_pitch","head_yaw"},10)
+			self:LookAtPosition(self:FindCenter(self:GetEnemy()),{"body_pitch","body_yaw"},20)
+		end
+	end
 end
 
 ---------------------------------------------------------------------------------------------------------------------------------------------

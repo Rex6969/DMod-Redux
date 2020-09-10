@@ -10,5 +10,5 @@ VertexLitGeneric
 	$phongboost	0.5
 	
 	$selfillum 1
-	$selfillumtint "[5 4 1]"
+	$selfillumtint "[5 3.5 0]"
 }
