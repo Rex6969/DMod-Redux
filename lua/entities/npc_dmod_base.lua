@@ -155,38 +155,28 @@ if SERVER then
   function ENT:OnDowned(dmg, hitgroup) end
   
   -- Custom functions atart
-  
-  ---------------------------------------------------------------------------------------------------------------------------------------------
-	-- Legacy angle function
-	---------------------------------------------------------------------------------------------------------------------------------------------
 
-	function ENT:D_GetAngleTo(pos)
-		local targetang = ( pos - self:GetPos() + self:OBBCenter() ):Angle()
-		local selfang = self:GetAngles()
-		local angreturn = {["x"] = math.AngleDifference(targetang.x,selfang.x),["y"] = math.AngleDifference(targetang.y,selfang.y)}
-		return angreturn
+	function ENT:DrG_RandomPos(min, max) -- Fixed
+		if isnumber(max) then
+			local dir = Vector(math.random(-100, 100), math.random(-100, 100), 0)
+			dir = dir:GetNormalized()*math.random(min, max)
+			local pos = self:GetPos()+dir
+			if navmesh.IsLoaded() then
+				local area = navmesh.GetNearestNavArea(pos)
+				if not area then return self:DrG_RandomPos(min, max) end -- Added this line
+				return self:DrG_TraceHull(nil, {
+				  start = area:GetCenter(),
+				  endpos = area:GetClosestPointOnArea(pos),
+				  collisiongroup = COLLISION_GROUP_WORLD,
+				  step = true
+				}).HitPos
+				elseif util.IsInWorld(pos) then
+				return self:DrG_TraceHull(Vector(0, 0, -999999), {
+				  collisiongroup = COLLISION_GROUP_WORLD, start = pos
+				}).HitPos
+			 else return self:DrG_RandomPos(min, max) end
+		else return self:DrG_RandomPos(0, min) end
 	end
-
-	---------------------------------------------------------------------------------------------------------------------------------------------
-	-- That shit returns direction as a string
-	---------------------------------------------------------------------------------------------------------------------------------------------
-
-	function ENT:D_DirectionTo(pos)
-		local _ang = self:D_GetAngleTo(pos).y
-		if _ang >= -45 and _ang <= 45 then
-			return "forward"
-		elseif _ang >= -135 and _ang <= -45 then
-			return "right"
-		elseif _ang <= 135 and _ang >= 45 then
-			return "left"
-		else
-			return "back"
-		end
-	end
-
-	---------------------------------------------------------------------------------------------------------------------------------------------
-	-- Gibbinh function
-	---------------------------------------------------------------------------------------------------------------------------------------------
 
 
 	function ENT:D_Gib(tbl,dmg)
