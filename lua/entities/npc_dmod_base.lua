@@ -6,178 +6,131 @@ DEFINE_BASECLASS("drgbase_nextbot")
 ENT.PrintName = "Template"
 ENT.Category = "Other"
 ENT.Models = {"models/Kleiner.mdl"}
-ENT.Skins = {0}
-ENT.ModelScale = 1
-ENT.CollisionBounds = Vector(10, 10, 72)
-ENT.BloodColor = BLOOD_COLOR_RED
-ENT.RagdollOnDeath = true
 
--- Stats --
-ENT.SpawnHealth = 100
-ENT.HealthRegen = 0
-ENT.MinPhysDamage = 10
-ENT.MinFallDamage = 10
-
--- Sounds --
-ENT.OnSpawnSounds = {}
-ENT.OnIdleSounds = {}
-ENT.IdleSoundDelay = 2
-ENT.ClientIdleSounds = false
-ENT.OnDamageSounds = {}
-ENT.DamageSoundDelay = 0.25
-ENT.OnDeathSounds = {}
-ENT.OnDownedSounds = {}
-ENT.Footsteps = {}
-
--- AI --
-ENT.Omniscient = false
-ENT.SpotDuration = 30
-ENT.RangeAttackRange = 0
-ENT.MeleeAttackRange = 50
-ENT.ReachEnemyRange = 50
-ENT.AvoidEnemyRange = 0
-
--- Relationships --
-ENT.Factions = {}
-ENT.Frightening = false
-ENT.AllyDamageTolerance = 0.33
-ENT.AfraidDamageTolerance = 0.33
-ENT.NeutralDamageTolerance = 0.33
-
--- Locomotion --
-ENT.Acceleration = 1000
-ENT.Deceleration = 1000
-ENT.JumpHeight = 50
-ENT.StepHeight = 20
-ENT.MaxYawRate = 250
-ENT.DeathDropHeight = 200
-
--- Animations --
-ENT.WalkAnimation = ACT_WALK
-ENT.WalkAnimRate = 1
-ENT.RunAnimation = ACT_RUN
-ENT.RunAnimRate = 1
-ENT.IdleAnimation = ACT_IDLE
-ENT.IdleAnimRate = 1
-ENT.JumpAnimation = ACT_JUMP
-ENT.JumpAnimRate = 1
-
--- Movements --
-ENT.UseWalkframes = false
-ENT.WalkSpeed = 100
-ENT.RunSpeed = 200
-
--- Climbing --
-ENT.ClimbLedges = false
-ENT.ClimbLedgesMaxHeight = math.huge
-ENT.ClimbLedgesMinHeight = 0
-ENT.LedgeDetectionDistance = 20
-ENT.ClimbProps = false
-ENT.ClimbLadders = false
-ENT.ClimbLaddersUp = true
-ENT.LaddersUpDistance = 20
-ENT.ClimbLaddersUpMaxHeight = math.huge
-ENT.ClimbLaddersUpMinHeight = 0
-ENT.ClimbLaddersDown = false
-ENT.LaddersDownDistance = 20
-ENT.ClimbLaddersDownMaxHeight = math.huge
-ENT.ClimbLaddersDownMinHeight = 0
-ENT.ClimbSpeed = 60
-ENT.ClimbUpAnimation = ACT_CLIMB_UP
-ENT.ClimbDownAnimation = ACT_CLIMB_DOWN
-ENT.ClimbAnimRate = 1
-ENT.ClimbOffset = Vector(0, 0, 0)
-
--- Detection --
-ENT.EyeBone = ""
-ENT.EyeOffset = Vector(0, 0, 0)
-ENT.EyeAngle = Angle(0, 0, 0)
-ENT.SightFOV = 150
-ENT.SightRange = 15000
-ENT.MinLuminosity = 0
-ENT.MaxLuminosity = 1
-ENT.HearingCoefficient = 1
-
--- Weapons --
-ENT.UseWeapons = false
-ENT.Weapons = {}
-ENT.WeaponAccuracy = 1
-ENT.WeaponAttachment = "Anim_Attachment_RH"
-ENT.DropWeaponOnDeath = false
-ENT.AcceptPlayerWeapons = true
-
--- Possession --
-ENT.PossessionEnabled = false
-ENT.PossessionPrompt = true
-ENT.PossessionCrosshair = false
-ENT.PossessionMovement = POSSESSION_MOVE_1DIR
-ENT.PossessionViews = {}
-ENT.PossessionBinds = {}
+ENT.UseWalkframes = true
 
 if SERVER then
 
-  function ENT:CustomInitialize() end
-  function ENT:CustomThink() end
+	ENT.BehaviourType = AI_BEHAV_CUSTOM
+	ENT.Factions = {"FACTION_DOOM"}
+	ENT.Schedule ={}
 
-  -- These hooks are called when the nextbot has an enemy (inside the coroutine)
-  function ENT:OnMeleeAttack(enemy) end
-  function ENT:OnRangeAttack(enemy) end
-  function ENT:OnChaseEnemy(enemy) end
-  function ENT:OnAvoidEnemy(enemy) end
-
-  -- These hooks are called while the nextbot is patrolling (inside the coroutine)
-  function ENT:OnReachedPatrol(pos)
-    self:Wait(math.random(3, 7))
-  end 
-  function ENT:OnPatrolUnreachable(pos) end
-  function ENT:OnPatrolling(pos) end
-
-  -- These hooks are called when the current enemy changes (outside the coroutine)
-  function ENT:OnNewEnemy(enemy) end
-  function ENT:OnEnemyChange(oldEnemy, newEnemy) end
-  function ENT:OnLastEnemy(enemy) end
-
-  -- Those hooks are called inside the coroutine
-  function ENT:OnSpawn() end
-  function ENT:OnIdle()
-    self:AddPatrolPos(self:RandomPos(1500))
-  end
-
-  -- Called outside the coroutine
-  function ENT:OnTakeDamage(dmg, hitgroup)
-    self:SpotEntity(dmg:GetAttacker())
-  end
-  function ENT:OnFatalDamage(dmg, hitgroup) end
-  
-  -- Called inside the coroutine
-  function ENT:OnTookDamage(dmg, hitgroup) end
-  function ENT:OnDeath(dmg, hitgroup) end
-  function ENT:OnDowned(dmg, hitgroup) end
-  
-  -- Custom functions atart
-
-	function ENT:DrG_RandomPos(min, max) -- Fixed
-		if isnumber(max) then
-			local dir = Vector(math.random(-100, 100), math.random(-100, 100), 0)
-			dir = dir:GetNormalized()*math.random(min, max)
-			local pos = self:GetPos()+dir
+	-- WHY THE FUCK DOESN'T DRGBASE HAVE THIS
+	
+	function ENT:GetTableValue( tbl )
+		if not tbl then return end
+		return ( tbl[math.random( #tbl ) ] )
+	end
+	
+	function ENT:ExtractAnimation(tbl,key)
+		if not tbl then return end
+		return( self:GetTableValue( tbl[key] ) )
+	end
+	
+	function ENT:ExtractAnimation2( tbl, key1, key2 )
+		if not tbl then return end
+		return( tbl[ key1 ][ key2 ] )
+	end
+	
+	-- WHY THE FUCK IS IT BROKEN IN DRGBASE
+	-- Based on DrG_RandomPos but edited and exists only for this base and it's children
+	-- 2x shorter but i am sure it works
+	-- I renamed it with kewl name so it won't cause any conflict
+	
+	function ENT:RX_RandomPos(_entity, _min, _max)
+		if not IsValid(_entity) then return end
+		if isnumber(_max) then
+			local pos = _entity:GetPos() + Vector(math.random(-100, 100), math.random(-100, 100), 0):GetNormalized() * math.random(_min, _max)
 			if navmesh.IsLoaded() then
 				local area = navmesh.GetNearestNavArea(pos)
-				if not area then return self:DrG_RandomPos(min, max) end -- Added this line
-				return self:DrG_TraceHull(nil, {
-				  start = area:GetCenter(),
-				  endpos = area:GetClosestPointOnArea(pos),
-				  collisiongroup = COLLISION_GROUP_WORLD,
-				  step = true
-				}).HitPos
-				elseif util.IsInWorld(pos) then
-				return self:DrG_TraceHull(Vector(0, 0, -999999), {
-				  collisiongroup = COLLISION_GROUP_WORLD, start = pos
-				}).HitPos
-			 else return self:DrG_RandomPos(min, max) end
-		else return self:DrG_RandomPos(0, min) end
+				if IsValid(area) then
+					local pos = area:GetClosestPointOnArea(pos)
+					return pos
+				end
+			end
+		end
+		return self:RX_RandomPos(_entity, 0, _max)
+	end
+	
+	function ENT:GoTo(pos, tolerance, callback)
+		if not isfunction(callback) then callback = function() end end
+		while true do
+		local res = self:FollowPath(pos, tolerance)
+		if res == "reached" then return true
+		elseif res == "unreachable" then
+			return false
+		else
+			res = callback(self, self:GetPath())
+			if isbool(res) then return res end
+				self:YieldCoroutine(true)
+			end
+		end
+		return false
+	end
+	
+	-- Some setters/getters lol
+	
+	function ENT:SetIdleAnimation(anim)
+		self.IdleAnimation = anim
+	end
+	
+	function ENT:SetWalkAnimation(anim)
+		self.WalkAnimation = anim
+	end
+	
+	function ENT:SetRunAnimation(anim)
+		self.RunAnimation = anim
 	end
 
+	-- Schedule
+
+	function ENT:AddAIState(task,arg)
+		return table.insert(self.Schedule,{task,arg})
+	end
+	
+	function ENT:RemoveAIState(task,arg)
+		return table.remove(self.Schedule,#self.Schedule)
+	end
+	
+	function ENT:OverwriteAIState(task,arg)
+		self:RemoveAIState()
+		self:AddAIState(task,arg)
+		return
+	end
+
+	function ENT:RunAIState() -- FUCKING HACK
+		local func = self.Schedule[#self.Schedule][1]
+		if not func then return end 
+		return self[func](self)
+	end
+	
+	function ENT:UpdateAIState(maximum)
+		if #self.Schedule > maximum then
+			table.remove(self.Schedule,1)
+		elseif #self.Schedule == 0 then
+			self:AddAIState("TaskFail")
+			self:RunAIState()
+		end
+		self:RunAIState()
+	end
+	
+	function ENT:AIStateData()
+		return self.Schedule[1][2] or {}
+	end
+	
+	function ENT:WriteAIStateData(key,value)
+		if not self.Schedule[1][2] then self.Schedule[1][2] = {} end
+		self.Schedule[1][2][key] = value
+	end
+	
+	-- Shared states
+	
+	function ENT:State_Fail()
+		self:Wait( 1 )
+		self:OverwriteAIState( "State_Idle" )
+	end
+
+	-- gibbing function
 
 	function ENT:D_Gib(tbl,dmg)
 
@@ -248,12 +201,27 @@ if SERVER then
 
 else
 
-  function ENT:CustomInitialize() end
-  function ENT:CustomThink() end
-  function ENT:CustomDraw() end
-
 end
+
+	---------------------------------------------------------------------------------------------------------------------------------------------
+	-- Fuck poseparameters
+	-- Legacy function, it's going to be here until i find something better
+	---------------------------------------------------------------------------------------------------------------------------------------------
+	
+	function ENT:BoneLook(bone, pos, limitx, limity, speed, mul)
+		local mul = mul or 1
+		local bone = self:LookupBone(bone)
+		local selfpos = self:GetPos() + self:OBBCenter()
+		local selfang = self:GetAngles()
+		local targetang = (pos - selfpos):Angle()
+		local rotpitch = math.AngleDifference(targetang.p,selfang.p) * mul
+		local rotyaw = math.AngleDifference(targetang.y,selfang.y) * mul
+		local curang = self:GetManipulateBoneAngles(bone)
+		
+		if (rotpitch > -limitx and rotpitch < limitx) and (rotyaw > -limity and rotyaw < limity) then
+			self:ManipulateBoneAngles(bone, Angle( math.ApproachAngle(curang.p,rotpitch,speed), math.ApproachAngle(curang.y,rotyaw,speed), 0 ) )
+		end
+	end
 
 -- DO NOT TOUCH --
 AddCSLuaFile()
-DrGBase.AddNextbot(ENT)

@@ -1,224 +1,175 @@
-if not DrGBase then error("DrGBase is not installed! NPC failed to load!") return end
+if not DrGBase then return end
 ENT.Base = "npc_dmod_base"
+DEFINE_BASECLASS("npc_dmod_base")
 
--- Misc --
 ENT.PrintName = "Imp"
 ENT.Category = "DOOM"
 ENT.Models = {"models/doom/monsters/imp/imp.mdl"}
-ENT.BloodColor = BLOOD_COLOR_RED
 
--- Sounds --
+ENT.StartHealth = 150
 
--- Stats --
-
-ENT.SpawnHealth = 150
-ENT.AIType = 0
-ENT.MeleeDamage = 8
-
--- AI --
-ENT.BehaviourType = AI_BEHAV_CUSTOM
-
-ENT.RangeAttackRange = 2000
-ENT.MeleeAttackRange = 150
-
-ENT.ReachEnemyRange = 100
-ENT.MaxSurroundDist = 1000
-ENT.MinSurroundDist = 800
-ENT.CloseDist = 200
-
-ENT.NextPath = CurTime()
-ENT.NextTurn = CurTime()
-
-ENT.MoveTarget = Vector()
-ENT.Target = Vector()
-
--- Relationships --
 ENT.Factions = {"FACTION_DOOM"}
 
--- Movements/animations --
-ENT.UseWalkframes = true
+ENT.IdleAnimation = "idle_combat"
 ENT.WalkAnimation = "walk"
 ENT.RunAnimation = "run"
 
--- Detection --
-ENT.EyeBone = "Head"
-ENT.EyeOffset = Vector(0, 0, 5)
+ENT.UseWalkframes = true
 
-if ( SERVER ) then
+ENT.LastSeenEnemy = CurTime()
 
-	-- Init/Think --
+ENT.MinSurroundDist = 400
+ENT.MaxSurroundDist = 800
+
+ENT.FarDist = 1000
+ENT.AttackDist = 1500
+
+ENT.MeleeFarDistance = 150
+ENT.MeleeCloseDistance = 90
+
+ENT.Animtbl_Melee = {
+	["melee_Moving"] = {"melee_forward_moving_1","melee_forward_moving_2"},
+	["melee_N"] = {"melee_forward_1","melee_forward_2"},
+	["melee_W"] = {"melee_left"},
+	["melee_E"] = {"melee_right"},
+	["melee_S"] = {"melee_back_1","melee_back_2"}
+}
+
+ENT.Animtbl_Ranged = {
+	["Forward"] = {"throw_1","throw_2"},
+	["move_N"] = {"throw_moving_forward"},
+	["move_W"] = {"throw_moving_left"},
+	["move_E"] = {"throw_moving_right"}
+}
+
+ENT.Animtbl_Stop = {
+	["N"] = {"","",""},
+	["W"] = {"","",""},
+	["E"] = {"","",""},
+	["S"] = {"","",""}
+}
+
+if SERVER then
 
 	function ENT:CustomInitialize()
-	
-		self:SetDefaultRelationship(D_HT)
-		self.IdleAnimation = "idle_relaxed"
+		self:SetDefaultRelationship( D_HT )
+		self:OverwriteAIState( "State_Spawn" )
 		
-	end
-	
-	function ENT:OnSpawn()
-	
-		self:PlayAnimationAndWait("spawn_teleport_"..math.random(5))
-		self:Wait(math.Rand(1,2))
+		--self:SetCooldown( "Next_Move", 0 )
 		
-		local typetable = {0,0,0,0,1,1,2}
-		self.AIType = typetable[math.random(1,#typetable)]
-		
-		if self.AIType == 0 then
-			
-		elseif self.AIType == 1 then
-			self.CloseDist = 300
-		else
-		end
-		
-		--self.MoveTarget = self:GetPos()
-		self.Target = self:GetPos() + self:OBBCenter() + self:GetForward() * 100
-		
-	end
-	
-	function ENT:OnReachedPatrol()
-		self:Wait(1)
 	end
 	
 	function ENT:AIBehaviour()
+		self:UpdateAIState(5)
+		self:MeleeAttack(self:IsMoving())
 		
-		if not self:HasEnemy() then
-		
-			self.IdleAnimation = "idle_relaxed"
-			self:AddPatrolPos(self:RandomPos(500))
-		
-			return
-		
-		end
-		
-		local enemy = self:GetEnemy()
-		local relationship = self:GetRelationship(enemy)
-		
-		self.IdleAnimation = "idle_combat"
-		self.WalkAnimation = "walk"
-		self.RunAnimation = "run"
-		
-		if not self:IsMoving() then
-			self.Target = enemy:GetPos()
-			self:Turn(enemy:GetPos())
-		else
-			self.NextTurn = CurTime() + math.Rand(1,2)
-		end
-		
-		if relationship == D_HT then
-			
-			if self:IsInRange(enemy, self.CloseDist) then
-				
-				if self.AIType ~= 2 then
-				
-					self.MoveTarget = enemy:GetPos()
-					self:FollowPath(self.MoveTarget,150)
-					self.NextPath = CurTime()
-					
-				else
-					
-					self.MoveTarget = self:GetPos():DrG_Away(enemy:GetPos())
-					self:GoTo(self.MoveTarget,150)
-					self.NextPath = CurTime()
-					
-				end
-				
-			else
-			
-				if  self.NextPath < CurTime() and !self:IsMoving() then
-					local t = 0
-					local checkpos = Vector()
-					local bestpos = Vector()
-					while true do
-						checkpos = enemy:DrG_RandomPos(self.MinSurroundDist,self.MaxSurroundDist)+Vector(0,0,50)
-						if ( self:VisibleVec(checkpos) or math.random(10) == 1 ) and ( enemy:VisibleVec(checkpos) or math.random(20) == 1 ) and ( self:GetPos():DistToSqr(checkpos) >= 300*300 ) then
-							self.MoveTarget = checkpos
-							print("pos gen succesful")
-							self.MoveTarget = checkpos
-							self:Turn(self.MoveTarget)
-							break
-						end
-						t = t + 1
-						if checkpos and t >= 10 then print("pos gen failed") self.MoveTarget = enemy:GetPos() break end
-					end
-					self:GoTo(self.MoveTarget, 200)
-					self.NextPath = CurTime() + math.Rand(3,5)
-				end
-					
-			end
+		--if not self:HasEnemy() then return end
+		--local enemy = self:GetEnemy()
+		--if self:Visible(enemy) then
+			--self.LastSeenEnemy = CurTime()
+		--end
+	end
+	
+	-- Idle block
 
+	function ENT:State_Spawn()
+		self:PlayAnimationAndWait( "spawn_teleport_"..math.random(1,5) )
+		if self:HasEnemy() then 
+			self:OverwriteAIState( "State_Combat" )
+		else 
+			self:OverwriteAIState( "State_Idle" ) 
 		end
-		
 	end
 	
-	function ENT:HandleAnimEvent(event, _, _, _, options)
-		
-		local event = string.Explode(" ", options, false)
+	function ENT:State_Idle()
 	
-		if event[1] == "sound" then
-			
-			sound.Play("doom/monsters/imp/imp_"..event[2]..".ogg",self:GetPos()) -- Requires some work with the events
-			print(event[2])
-			
+		if self:HasEnemy() then self:AddAIState("State_Combat") end
+		
+		self:SetIdleAnimation("idle_relaxed")
+		self:Wait( 1.5 )
+		
+		self:GoTo( self:RX_RandomPos( self, 200,400 ), 100)
+	end
+	
+	function ENT:State_Combat()
+	
+		if !self:HasEnemy() then self:AddAIState("State_Combat") end
+		
+		self:SetIdleAnimation( "idle_combat" )
+		if self:GetCooldown( "Next_Move" ) <= 0 then
+			self:AddAIState( "State_Combat_Move" )
+			self:SetCooldown( "Next_Move", math.Rand( 3, 5 ) )
+		--elseif ( CurTime() - self.LastSeenEnemy > 5 and math.random(5) == 1 ) then
+			--self:AddAIState( "State_Combat_Move" )
+			--self:WriteAIStateData( "Chase", true )
+			--self:SetCooldown( "Next_Move", math.Rand( 2, 3 ) )
 		end
-	
 	end
 	
-	function ENT:Turn(pos)
+	function ENT:State_Combat_Move()
+		--if self:AIStateData().Chase then
+			--self:GoTo( self:GetEnemy():GetPos(), 400, function() if self:Visible(enemy) and math.random(2) == 1 then return true end end)
+		--else
+		self:GoTo( self:RecomputeSurroundPath() )
+		--end
+		self:RemoveAIState()
+	end
 	
-		if self:IsDead() or math.random(1,10) ~= 1 or self.NextTurn > CurTime() then return end
-		local direction = self:CalcPosDirection(pos,subs)
-		if direction == "N" then return
-		elseif direction == "W" then
-			self:PlaySequenceAndMove("turn_left_90")
-		elseif direction == "E" then
-			self:PlaySequenceAndMove("turn_right_90")
-		else
-			local animtable = {"turn_left_90","turn_right_90"}
-			self:PlaySequenceAndMove(animtable[math.random(1,2)])
-			
+	function ENT:MeleeAttack(IsMoving)
+		local enemy, animkey  = self:GetEnemy(), ""
+		if !enemy then return end
+		if !self:Visible(enemy) then return end
+		if self:IsInRange( enemy, self.MeleeCloseDistance ) --[[and not IsMoving]] then animkey = ( "melee_"..self:CalcPosDirection( enemy:GetPos() ) )
+		elseif self:IsInRange( enemy, self.MeleeFarDistance ) && self:IsInCone( enemy, 60 ) then animkey = "melee_Moving"
 		end
-		
+		self:PlayAnimationAndMove(self:ExtractAnimation( self.Animtbl_Melee, animkey), 1, function(self, cycle)
+			if cycle > 0.3 and cycle < 0.5 then self:FaceEnemy() end 
+		end)
+		return
 	end
 	
-	function ENT:OnAnimChanged(old,new)
-	
-		self:CallInCoroutine(function () self:HandleTransitions(old,new) end)
-	
-	end
-	
-	function ENT:HandleTransitions(old,new)
-	
-		if old == "run" and new == "idle" then
-			local dir = self:CalcPosDirection(self.Target)
-			local anim
-			if dir == "N" then
-				anim = "run_forward_to_idle"
-			elseif dir == "W" or dir == "SW" then
-				anim = "run_forward_turn_left_to_idle"
-			elseif dir == "E" or dir == "SE" then
-				anim = "run_forward_turn_right_to_idle"
-			elseif dir == "S" then
-				local animtable = {"run_forward_turn_left_180_to_idle","run_forward_turn_right_180_to_idle"}
-				anim = animtable[math.random(1,2)]
+	function ENT:RecomputeSurroundPath(_max)
+		local finpos, tries, maxtries = false, 0, 10
+		while tries < maxtries do 
+			local _pos = self:RX_RandomPos( self:GetEnemy(), self.MinSurroundDist,  _max )
+			if !util.IsInWorld(pos) and self:GetEnemy():VisibleVec(_pos+Vector(0,0,60)) and !self:IsInRange(_pos, 300) then
+				finpos = _pos
+				break
 			end
-			if self:HasEnemy() and math.random(1,2) == 1 then
-				string.gsub(anim,"run_forward","run_forward_throw")
-			end
-			self:PlayAnimationAndMove(anim)
+			tries = tries + 1
 		end
-		if old == "idle_combat" and new == "run" then
-			--self:PlayAnimationAndMove("idle_to_run_forward")
-		end
+		return finpos
+	end
+	
+	function ENT:HandleAnimEvent(event, time, cycle, type, options)
+		local event = string.Explode(" ", options)
 		
-		return true
+		if event[1] == "attack" then
+			if event[2] == "melee" then
+				self:Attack({
+				damage = math.random(7,8),
+				angle = 135,
+				range = 90,
+				type = DMG_SLASH,
+				viewpunch = Angle(2, math.random(-2, 2), 0)
+				})
+			end
+		end
 		
 	end
 	
-	
-
 else
 
+	function ENT:CustomDraw()
+	
+		if self:HasEnemy() then
+			local enemypos = self:GetEnemy():GetPos() + self:GetEnemy():OBBCenter()
+			self:BoneLook("Head", enemypos, 60, 40, 10, 0.5)
+			self:BoneLook("Spine", enemypos, 60, 40, 10, 0.5)
+		end
+	end
+	
 end
 
 AddCSLuaFile()
-DrGBase.AddNextbot(ENT)
+--DrGBase.AddNextbot(ENT)
