@@ -9,6 +9,8 @@
 -- Limitations
 -- ~ By far, it's purpose is only to use it with NextBots, and i've never tested it with any NPCs. It should work tho.
 
+if not SERVER then return end
+
 ----------------------------------------------------------------------------------------------------
 -- State example
 ----------------------------------------------------------------------------------------------------
