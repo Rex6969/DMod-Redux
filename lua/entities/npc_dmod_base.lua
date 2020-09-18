@@ -1,20 +1,20 @@
 if not DrGBase then return end -- return if DrGBase isn't installed
-
--- Include files
-
-#include "modules/server/dmod_ai_state.lua" -- FSM functions
-
 ENT.Base = "drgbase_nextbot" -- DO NOT TOUCH (obviously) -- Haha i touched this so many times
 DEFINE_BASECLASS("drgbase_nextbot")
 
-ENT.PrintName = "Template"
-ENT.Category = "Other"
-ENT.Models = {"models/Kleiner.mdl"}
+-- Include files
 
-ENT.UseWalkframes = true
+include("modules/server/dmod_ai_state.lua") -- FSM functions
 
 if SERVER then
+	
+	
+	ENT.PrintName = "Template"
+	ENT.Category = "Other"
+	ENT.Models = {"models/Kleiner.mdl"}
 
+	ENT.UseWalkframes = true
+	
 	ENT.BehaviourType = AI_BEHAV_CUSTOM -- Because i want it to have custom AI
 	ENT.Factions = {"FACTION_DOOM"}
 	ENT.Tbl_State = {} -- State stack
