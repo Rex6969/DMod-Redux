@@ -16,7 +16,7 @@ ENT.RunAnimation = "run"
 
 ENT.UseWalkframes = true
 
-ENT.LastSeenEnemy = CurTime()
+--ENT.LastSeenEnemy = CurTime()
 
 ENT.MinSurroundDist = 400
 ENT.MaxSurroundDist = 800
@@ -51,6 +51,17 @@ ENT.Animtbl_Stop = {
 
 if SERVER then
 
+	function ENT:AIBehaviour()
+		self:UpdateAIState(5)
+		self:MeleeAttack(self:IsMoving())
+		
+		--[[if not self:HasEnemy() then return end
+		local enemy = self:GetEnemy()
+		if self:Visible(enemy) then
+			self.LastSeenEnemy = CurTime()
+		end]]
+	end
+	
 	function ENT:CustomInitialize()
 		self:SetDefaultRelationship( D_HT )
 		self:OverwriteAIState( "State_Spawn" )
@@ -59,51 +70,72 @@ if SERVER then
 		
 	end
 	
-	function ENT:AIBehaviour()
-		self:UpdateAIState(5)
-		self:MeleeAttack(self:IsMoving())
-		
-		--if not self:HasEnemy() then return end
-		--local enemy = self:GetEnemy()
-		--if self:Visible(enemy) then
-			--self.LastSeenEnemy = CurTime()
-		--end
-	end
-	
 	-- Idle block
 
+	
 	function ENT:State_Spawn()
-		self:PlayAnimationAndWait( "spawn_teleport_"..math.random(1,5) )
-		if self:HasEnemy() then 
-			self:OverwriteAIState( "State_Combat" )
-		else 
-			self:OverwriteAIState( "State_Idle" ) 
+		if !self:GetInState() then
+			self:PlayAnimationAndWait( "spawn_teleport_"..math.random(1,5) )
+			return self:SetInState(true)
 		end
+		--local data = self:StateData()
+		if self:HasEnemy() then return self:OverwriteAIState( "Combat" ) else self:OverwriteAIState( "Idle" ) end
 	end
 	
 	function ENT:State_Idle()
-	
-		if self:HasEnemy() then self:AddAIState("State_Combat") end
+		if !self:GetInState() then
+			self:Wait( math.Rand(1,3) )
+			return self:SetInState(true)
+		end
 		
-		self:SetIdleAnimation("idle_relaxed")
-		self:Wait( 1.5 )
+		if self:GetCooldown( "Next_Wander" ) <= 0 then
+			self:GoTo( self:RX_RandomPos( self, 200, 300 ) )
+			self:SetCooldown( "Next_Wander", 1.5 )
+		end
 		
-		self:GoTo( self:RX_RandomPos( self, 200,400 ), 100)
+		if self:HasEnemy() then return self:OverwriteAIState( "Combat" ) end
 	end
 	
 	function ENT:State_Combat()
 	
-		if !self:HasEnemy() then self:AddAIState("State_Combat") end
-		
-		self:SetIdleAnimation( "idle_combat" )
+		if !self:GetInState() then
+			--self:Wait( math.Rand(1,3) )
+			-- Stop animation code goes here
+			self:SetIdleAnimation( "idle_combat" )
+			
+			return self:SetInState(true)
+		end
+
 		if self:GetCooldown( "Next_Move" ) <= 0 then
 			self:AddAIState( "State_Combat_Move" )
 			self:SetCooldown( "Next_Move", math.Rand( 3, 5 ) )
-		--elseif ( CurTime() - self.LastSeenEnemy > 5 and math.random(5) == 1 ) then
-			--self:AddAIState( "State_Combat_Move" )
-			--self:WriteAIStateData( "Chase", true )
-			--self:SetCooldown( "Next_Move", math.Rand( 2, 3 ) )
+		--[[elseif ( CurTime() - self.LastSeenEnemy > 5 and math.random(5) == 1 ) then
+			self:AddAIState( "State_Combat_Move" )
+			self:WriteAIStateData( "Chase", true )
+			self:SetCooldown( "Next_Move", math.Rand( 2, 3 ) )]]
 		end
+		
+		if !self:HasEnemy() then self:OverwriteAIState("State_Idle") end
+	end
+	
+	function ENT:State_Combat_Move() 
+		if !self:GetInState() then
+			--self:Wait( math.Rand(1,3) )
+			-- Idle-to-tun animation code goes here
+			self:SetMovementTarger( self:RecomputeSurroundPath() )
+			self:SetIdleAnimation( "idle_combat" )
+			
+			return self:SetInState(true)
+		end
+		
+		local path = self:FollowPath(self:GetMovementTarget())
+		if path then
+			if path == "reached" or path == "unreachable" then
+				return self:RemoveState()
+			end
+		end
+		
+		self:RemoveState()
 	end
 	
 	function ENT:State_Combat_Move()
@@ -126,19 +158,6 @@ if SERVER then
 			if cycle > 0.3 and cycle < 0.5 then self:FaceEnemy() end 
 		end)
 		return
-	end
-	
-	function ENT:RecomputeSurroundPath(_max)
-		local finpos, tries, maxtries = false, 0, 10
-		while tries < maxtries do 
-			local _pos = self:RX_RandomPos( self:GetEnemy(), self.MinSurroundDist,  _max )
-			if !util.IsInWorld(pos) and self:GetEnemy():VisibleVec(_pos+Vector(0,0,60)) and !self:IsInRange(_pos, 300) then
-				finpos = _pos
-				break
-			end
-			tries = tries + 1
-		end
-		return finpos
 	end
 	
 	function ENT:HandleAnimEvent(event, time, cycle, type, options)
