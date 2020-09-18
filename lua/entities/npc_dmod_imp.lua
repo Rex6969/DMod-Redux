@@ -122,7 +122,10 @@ if SERVER then
 		if !self:GetInState() then
 			--self:Wait( math.Rand(1,3) )
 			-- Idle-to-tun animation code goes here
-			self:SetMovementTarger( self:RecomputeSurroundPath() )
+			local path = self:RecomputeSurroundPath()
+			local target = self:SetMovementTarget( path ) or false
+			if !target then return self:RemoveState() end
+			
 			self:SetIdleAnimation( "idle_combat" )
 			
 			return self:SetInState(true)
