@@ -5,6 +5,7 @@ DEFINE_BASECLASS("drgbase_nextbot")
 -- Include files
 
 include("modules/server/dmod_ai_state.lua") -- FSM functions
+include("modules/dmod_meta.lua") -- FSM functions
 
 if SERVER then
 	
