@@ -22,8 +22,10 @@ function ENT:State_Empty() -- 'State_' is only a prefix and it is being added in
 	end
 	local data = self:StateData() -- In most cases it's not necessary to use that function.
 	-- Here goes all the shit that should be called continuously.
-	if true then return self:RemoveState() end -- Simple state transition code. Next think will run the next selected state
+	if true then return self:RemoveState() --[[or self:OverwriteState("")]] end -- Simple state transition code. Next think will run the next selected state
 end
+
+
 
 ----------------------------------------------------------------------------------------------------
 -- Shared states
@@ -64,7 +66,7 @@ end
 
 function ENT:AddState( state, arg )
 	self:SetInState(false)
-	return table.insert(self.Tbl_State,{task,arg})
+	return table.insert(self.Tbl_State,{ "State_"..state, arg } )
 end
 
 -- Purpose: state transitions. Removes current state from the stack.
@@ -85,9 +87,9 @@ end
 -- Purpose: updates state stack and calls RunState()
 -- Note: It should be called every think. 
 
-function ENT:UpdateState(max)
-	self.Tbl_State = self.Tbl_State or {}
-	if ( #self.Tbl_State > max ) then table.remove( self.Tbl_State, 1 )
+function ENT:UpdateState(_max)
+	--if not self.Tbl_State then self.Tbl_State = {} end
+	if ( #self.Tbl_State > _max ) then table.remove( self.Tbl_State, 1 )
 	elseif ( #self.Tbl_State == 0 ) then self:AddState("Fail")	
 	end
 	self:RunState()
@@ -96,7 +98,7 @@ end
 -- Purpose: runs current state.
 
 function ENT:RunState()
-	local func = "State_"..self.Tbl_State[#self.Tbl_State][1]
+	local func = self.Tbl_State[#self.Tbl_State][1]
 	if not func then return end 
 	return self[func](self)
 end

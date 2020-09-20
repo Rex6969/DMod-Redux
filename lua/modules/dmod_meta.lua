@@ -2,7 +2,8 @@
 -- I have no idea if drgbase already has this so i am putting it there
 
 function ENT:GetTableValue( tbl )
-  return tbl[math.random( #tbl ) ] or false
+	if not tbl then return end
+	return tbl[math.random( #tbl ) ]
 end
 
 -- Purpose: getting random anim from specific animation table
@@ -15,4 +16,13 @@ end
   
 function ENT:ExtractAnimation2( tbl, key1, key2 )
 	return tbl[ key1 ][ key2 ] or ""
+end
+
+function ENT:GroundDist( pos, dist )
+	local trdata = {}
+	trdata.start = pos
+	trdata.endpos = pos - Vector ( 0, 0, dist)
+	trdata.filter = {self}
+	local tr = util.TraceLine(trdata)
+	return tr.Fraction*dist
 end

@@ -72,28 +72,31 @@ if SERVER then
 	
 	-- Idle block
 
-	
 	function ENT:State_Spawn()
 		if !self:GetInState() then
 			self:PlayAnimationAndWait( "spawn_teleport_"..math.random(1,5) )
 			return self:SetInState(true)
 		end
 		--local data = self:StateData()
-		if self:HasEnemy() then return self:OverwriteAIState( "Combat" ) else self:OverwriteAIState( "Idle" ) end
+		if self:HasEnemy() then self:OverwriteAIState( "Combat" ) else self:OverwriteAIState( "Idle" ) end
 	end
 	
 	function ENT:State_Idle()
 		if !self:GetInState() then
-			self:Wait( math.Rand(1,3) )
+			self:SetCooldown( "Next_Wander", math.Rand(1,3) )
 			return self:SetInState(true)
 		end
 		
 		if self:GetCooldown( "Next_Wander" ) <= 0 then
-			self:GoTo( self:RX_RandomPos( self, 200, 300 ) )
-			self:SetCooldown( "Next_Wander", 1.5 )
+			self:SetMovementTarget( self:RX_RandomPos( self, 100, 300 ) ) or false
+			self:SetCooldown( "Next_Wander", 10 )
 		end
 		
+		if  self:GetMovementTarget() then self:FollowPath( self:GetMovementTarget() ) end
+		if not self:IsMoving() then self:SetCooldown( "Next_Wander", -1 ) end
+		
 		if self:HasEnemy() then return self:OverwriteAIState( "Combat" ) end
+		
 	end
 	
 	function ENT:State_Combat()

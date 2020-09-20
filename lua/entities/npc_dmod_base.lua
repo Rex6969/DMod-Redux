@@ -4,9 +4,11 @@ DEFINE_BASECLASS("drgbase_nextbot")
 
 -- Include files
 
+--[[
 include("modules/server/dmod_sv_state.lua") -- FSM functions
-include("modules/server/dmod_sv_util.lua") -- FSM functions
+include("modules/server/dmod_sv_util.lua") -- Util functions
 include("modules/dmod_meta.lua") -- custom functions
+]]
 
 if SERVER then
 	
@@ -19,7 +21,7 @@ if SERVER then
 	
 	ENT.BehaviourType = AI_BEHAV_CUSTOM -- Because i want it to have custom AI
 	ENT.Factions = {"FACTION_DOOM"}
-	ENT.Tbl_State = {} -- State stack
+	--ENT.Tbl_State = {} -- State stack
 
 	----------------------------------------------------------------------------------------------------
 	-- Purpose: Replacing DrGBase functions that don't work for me.
