@@ -25,8 +25,8 @@ ENT.ClimbLedgesMaxHeight = 256
 ENT.LedgeDetectionDistance = 30
 
 ENT.Tbl_Animations = {
-	["Melee"] = {"melee_lunge_short_left_arm","melee_lunge_short_right_arm"},
-	["Melee_Moving"] = {"melee_moving_fwd_lunge_left_arm","melee_moving_fwd_lunge_right_arm"},
+	["Melee"] = {"melee_lunge_short_left_arm","melee_lunge_short_right_arm","melee_forward"},
+	["Melee_Moving"] = {"melee_moving_fwd_lunge_left_arm","melee_moving_fwd_lunge_right_arm","melee_forward"},
 	["Melee_Special"] = {"melee_special","melee_special_uacsecurity"},
 	["Melee_Special_Moving"] = {"melee_special_moving","melee_special_uacsecurity_moving"},
 	
@@ -98,7 +98,7 @@ if SERVER then
 	function ENT:State_Idle()
 		if !self:GetInState() then
 			self:SetIdleAnimation("idle_relaxed")
-			self:SetWalkAnimation( self:ExtractAnimation( self.Tbl_Animations, "Walk_Relaxed" ) )
+			self:SetRunAnimation( self:ExtractAnimation( self.Tbl_Animations, "Walk" ) )
 			return self:SetInState(true)
 		end
 		
@@ -368,70 +368,138 @@ if SERVER then
 		
 	end
 	
+	function ENT:OnTakeDamage(dmg, hitgroup)
+	
+		local anim_key = nil
+		local damage = dmg:GetDamage()
+		local damagetype = dmg:GetDamageType()
+		local inflictor = dmg:GetInflictor()
+	
+		if damage > 5 and math.random(math.huge) == 1 then
+			local dir = self:CalcPosDirection( inflictor:GetPos() )
+			if dir == "N" then
+				anim_key = "falter_front_"..self:RX_TranslateHitgroup( hitgroup )
+			else
+				anim_key = "falter_back_"..self:RX_TranslateHitgroup( hitgroup )
+			end
+			self:CallInCoroutine(function()
+				self:PlayAnimationAndMove( anim_key, 1 )
+			end)
+		end
+	end
+	
 	----------------------------------------------------------------------------------------------------
 	-- Death
 	----------------------------------------------------------------------------------------------------
 	
-	function ENT:RX_CreateRagdoll( dmg, body)
+	local directory = "models/doom/monsters/zombie/gore/"
+	
+	function ENT:RX_CreateRagdoll( dmg, body )
 	
 		local ragdoll = ents.Create( "prop_ragdoll" )
-		
-		ragdoll:SetPos( self:GetPos() )
-		ragdoll:SetAngles( self:GetAngles() )
-		ragdoll:SetModel( self:GetModel() )
-		
 		if isnumber(body) then
 			ragdoll:SetModel( self:GetModel() )
 			if body ~= 0 then
 				ragdoll:SetBodygroup( 0, 1 )
 				ragdoll:SetBodygroup( body, 1 )
 			end
-		else
+		elseif isstring( body ) then
 			ragdoll:SetModel( body )
 		end
-			
-		ragdoll:SetOwner(self)
-			
+		
+		ragdoll:SetPos( self:GetPos() )
+		ragdoll:SetAngles( self:GetAngles() + AngleRand(-30,-30) )
+		
+		ragdoll:SetCollisionGroup( COLLISION_GROUP_DEBRIS )
+		
 		ragdoll:Spawn()
 		ragdoll:Activate()
 		
-		local phys = ragdoll:GetPhysicsObject()
-		if IsValid(phys) then
-			phys:SetVelocity( VectorRand() * 80 + self:GetUp() * 100 + dmg:GetDamageForce() )
-		end
+		undo.ReplaceEntity(self, ragdoll)
+		cleanup.ReplaceEntity(self, ragdoll)
 		
-		timer.Simple(5, function()
-			ragdoll:Remove()
-		end)
+		ParticleEffectAttach("blood_advisor_puncture_withdraw",PATTACH_ABSORIGIN_FOLLOW,ragdoll,0)
+		ParticleEffectAttach("blood_impact_red_01",PATTACH_ABSORIGIN_FOLLOW,ragdoll,0)
+		
+		local phys = ragdoll:GetPhysicsObject()
+		if IsValid(phys) then phys:SetVelocity( VectorRand() * 80 + self:GetUp() * 500 + dmg:GetDamageForce():GetNormalized() * math.random( 300,600 ) ) end
 	
 	end
 	
-	ENT.Tbl_Gore = {
-	[0] = { BodyGroup = {},  }
-	}
+	function ENT:RX_TranslateHitgroup( hitgroup )
+	
+		if hitgroup == 2 then return "chest"
+		elseif hitgroup == 3 then return "stomach"
+		elseif hitgroup == 4 then return "leftarm"
+		elseif hitgroup == 5 then return "rightarm"
+		elseif hitgroup == 6 then return "leftleg"
+		elseif hitgroup == 7 then return "rightleg"
+		elseif hitgroup == 8 then return "head"
+		else return "chest" end
+	
+	end
+	
 	
 	function ENT:OnDeath( dmg, hitgroup )
 		
+		local anim_key = nil
 		local damage = dmg:GetDamage()
+		local damagetype = dmg:GetDamageType()
+		local inflictor = dmg:GetInflictor()
 		
-		if damage < 150 and ( hitgroup ~= HITGROUP_HEAD ) then
-			
+		local curcycle = 1
+		
+		print(hitgroup)
+		
+		if ( damage > 100 and hitgroup ~= HITGROUP_HEAD ) or ( damage > 300 ) or ( damagetype == DMG_BLAST ) then
+		
+			-- "Classic" death
+		
 			self:SetBodygroup( 0, 1 )
 			
-			if math.random(2) == 1 then
-				--self:RX_CreateRagdoll( dmg, 3)
-				self:RX_CreateRagdoll( dmg, 3)
-				self:SetBodygroup( 4, 1 )
-			else
-				--self:RX_CreateRagdoll( dmg, 1)
-				self:RX_CreateRagdoll( dmg, 1)
-				self:SetBodygroup( 2, 1 )
-			end
-			
-			self:PlayAnimationAndMove( "gore_death5_scientist_"..math.random(3), 1, function( self, cycle ) if cycle > 0.8 then self:BecomeRagdoll() return true end end)
-			
-		end
+			self:EmitSound("d4t/sfx_gore_big"..math.random(1,7)..".ogg",70,100,0.5)
 		
+			local rand = math.random(1,7)
+			if rand == 1 then
+				anim_key = "gore_death5_scientist_1"
+				self:SetBodygroup( 2, 1 ) 
+				self:RX_CreateRagdoll( dmg, directory.."death1_scientist_left.mdl")
+			elseif rand == 2 then
+				anim_key = "gore_death5_scientist_2"
+				self:SetBodygroup( 4, 1 ) 
+				self:RX_CreateRagdoll( dmg, directory.."death6_scientist_upper.mdl")
+			elseif rand == 3 then
+				anim_key = "gore_death5_scientist_3"
+				self:SetBodygroup( 4, 1 )
+				self:RX_CreateRagdoll( dmg, directory.."death6_scientist_upper.mdl")
+			elseif rand == 4 or rand == 5 then
+				self:RX_CreateRagdoll( dmg, directory.."death5_scientist_lower.mdl")
+				self:RX_CreateRagdoll( dmg, directory.."death6_scientist_upper.mdl")
+			else
+				self:RX_CreateRagdoll( dmg, directory.."death1_scientist_left.mdl")
+				self:RX_CreateRagdoll( dmg, directory.."death1_scientist_right.mdl")
+			end
+		elseif  damage > 50 and hitgroup == 8 then
+			anim_key = "headshot_"..math.random(2)
+		elseif math.random(3) ~= 1 then
+			curcycle = 0.8
+			local dir = self:CalcPosDirection( inflictor:GetPos() )
+			if dir == "N" then
+				self:FaceInstant( inflictor:GetPos() )
+				anim_key = "death_heavy_"..self:RX_TranslateHitgroup( hitgroup )
+			elseif dir == "W" then
+				if hitgroup == 0 or hitgroup == 7 or hitgroup == 6 or hitgroup == 2 then anim_key = "death_heavy_left_lower" else anim_key = "death_heavy_left_upper" end
+			elseif dir == "E" then
+				if hitgroup == 0 or hitgroup == 7 or hitgroup == 6 or hitgroup == 2 then anim_key = "death_heavy_right_lower" else anim_key = "death_heavy_right_upper" end
+			elseif dir == "S" then 
+				anim_key = "death_heavy_back"
+			end
+		end
+		self:SetCollisionGroup( COLLISION_GROUP_DEBRIS )
+		if anim_key then
+			print(anim_key)
+			self:PlayAnimationAndMove( anim_key, 1, function( self, cycle) if cycle > curcycle then self:BecomeRagdoll() end end)
+		end
 		self:BecomeRagdoll()
 		
 	end
@@ -443,11 +511,11 @@ else
 	
 		--self:SetIK(true)
 	
-		if self:HasEnemy() and IsValid(self:GetEnemy()) then
+		--[[if self:HasEnemy() and IsValid(self:GetEnemy()) then
 			local enemypos = self:GetEnemy():GetPos() + self:GetEnemy():OBBCenter()
 			self:BoneLook("Head", enemypos, 80, 60, 10, 0.5)
 			self:BoneLook("Spine", enemypos, 40, 20, 10, 0.5)
-		end
+		end]]
 	end
 
 end

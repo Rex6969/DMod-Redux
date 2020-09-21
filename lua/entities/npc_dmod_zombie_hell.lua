@@ -10,7 +10,7 @@ ENT.StartHealth = 150
 ENT.Factions = {"FACTION_DOOM"}
 
 AddCSLuaFile()
-DrGBase.AddNextbot(ENT)
+--DrGBase.AddNextbot(ENT)
 
 if SERVER then
 
