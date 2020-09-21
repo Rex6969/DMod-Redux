@@ -30,18 +30,23 @@ ENT.Tbl_Animations = {
 	["Melee_Special"] = {"melee_special","melee_special_uacsecurity"},
 	["Melee_Special_Moving"] = {"melee_special_moving","melee_special_uacsecurity_moving"},
 	
+	["Melee_w"] = {"melee_left"},
+	["Melee_E"] = {"melee_right"},
+	["Melee_S"] = {"melee_back"},
+	
+	
 	["Idle_To_Walk_W"] = {"idle_turn_left_to_walkforward"},
 	["Idle_To_Walk_E"] = {"idle_turn_right_to_walkforward"},
 	["Idle_To_Walk_SW"] = {"idle_turn_back_left_157_to_walkforward"},
 	["Idle_To_Walk_SE"] = {"idle_turn_back_right_157_to_walkforward"},
 	["Idle_To_Walk_S"] = {"idle_turn_back_left_157_to_walkforward","idle_turn_back_right_157_to_walkforward"},
 	
-	["Walk_Relaxed"] = {
+	--[[["Walk_Relaxed"] = {
 		"walk_forward_relaxed_1",
 		"walk_forward_relaxed_2",
 		"walk_forward_relaxed_3",
 		"walk_forward_relaxed_4"
-		},
+		},]]
 	
 	["Walk"] = {
 		"walk_forward",
@@ -71,6 +76,7 @@ if SERVER then
 		self:IdleSounds()
 		--self:MeleeAttack(self:IsMoving())
 		--PrintTable(self.Tbl_State)
+		
 	end
 	
 	----------------------------------------------------------------------------------------------------
@@ -98,7 +104,7 @@ if SERVER then
 	function ENT:State_Idle()
 		if !self:GetInState() then
 			self:SetIdleAnimation("idle_relaxed")
-			self:SetRunAnimation( self:ExtractAnimation( self.Tbl_Animations, "Walk" ) )
+			self:SetWalkAnimation( self:ExtractAnimation( self.Tbl_Animations, "Walk" ) )
 			return self:SetInState(true)
 		end
 		
@@ -157,19 +163,7 @@ if SERVER then
 	function ENT:State_Combat_Walk()
 	
 		if !self:GetInState() then
-		
-			if IsValid( self:GetEnemy() ) then
-		
-				self:SetMovementTarget( self:GetEnemy():GetPos() )
-				local anim_key = self:CalcPosDirection( self:GetMovementTarget(), true )
-				if anim_key ~= "N" or anim_key ~= "NW" or anim_key ~= "NE" then
-					self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, "Idle_To_Walk"..anim_key ), 1, function(self, cycle)
-						if cycle > 0.35 and cycle < 0.8 then self:FaceEnemy() end 
-					end)
-				end
-				
-			end
-		
+			self:Turn()
 			self:SetIdleAnimation( "idle_combat" )
 			self:SetRunAnimation( self:ExtractAnimation( self.Tbl_Animations, "Walk" ) )
 			return self:SetInState(true)
@@ -183,6 +177,7 @@ if SERVER then
 		if IsValid( self:GetEnemy() ) then
 			if self:GetCooldown( "Next_Chase" ) <= 0 or self:IsInRange( self:GetEnemy(), 200 ) then
 				self:SetMovementTarget( self:GetEnemy():GetPos() )
+				self:Turn()
 				self:SetCooldown( "Next_Chase", math.Rand( 0, 3 ) )
 			end
 		end
@@ -204,20 +199,16 @@ if SERVER then
 	function ENT:HandleMeleeAttack()
 		if IsValid( self:GetEnemy() ) then
 			local anim_key = ""
-			if self:Visible( self:GetEnemy() ) and self:IsInRange( self:GetEnemy(), 120 ) and self:IsInCone( self:GetEnemy(), 45 ) and math.random(3) == 1 then
-				if math.random( 10 ) == 1 then
-					if self:IsMoving() then
-						anim_key = "Melee_Special_Moving"
+			if self:Visible( self:GetEnemy() ) and self:IsInRange( self:GetEnemy(), 100 ) and math.random(3) == 1 then
+				local dir = self:CalcPosDirection( self:GetEnemy():GetPos() )
+				self:AttackSounds()
+				if dir == "N" then
+					if math.random( 10 ) == 1 then
+						if self:IsMoving() then anim_key = "Melee_Special_Moving" else anim_key = "Melee_Special" end
 					else
-						anim_key = "Melee_Special"
+						if self:IsMoving() then anim_key = "Melee_Moving" else anim_key = "Melee" end
 					end
-				else
-					self:AttackSounds()
-					if self:IsMoving() then
-						anim_key = "Melee_Moving"
-					else
-						anim_key = "Melee"
-					end
+				else anim_key = "Melee_"..dir
 				end
 			end
 			
@@ -259,24 +250,15 @@ if SERVER then
 	
 	function ENT:OnStartClimbing( ledge, height, down)
 	
-		if down then print("heck") return end
-	
 		if isvector(ledge) and self:VisibleVec( ledge ) then
 			local anim_key = ""
 			
 			if height < 64 then 
 				local checkpos = ( ledge + self:GetUp()*-( height - 25 ) + self:GetForward()*60 )
 				local enemy = self:GetEnemy()
-				debugoverlay.Cross(checkpos,10,10)
-				if self:VisibleVec(checkpos) then
-					anim_key = "overrailing"
-				else
-					anim_key = "climbledgeup64"
-				end
-				
+				if self:VisibleVec(checkpos) then anim_key = "overrailing" else anim_key = "climbledgeup64" end
 			elseif height < 96 then anim_key = "climbledgeup96"
 			elseif height < 128 then anim_key = "climbledgeup128" end
-			print(height)
 			
 			self:SetPos(ledge + self:GetForward()*-40 + self:GetUp()*-( height ))
 			self:FaceTo(ledge)
@@ -287,10 +269,6 @@ if SERVER then
 		
 		return true
 		
-	end
-	
-	function ENT:CustomClimbing( climb, height )
-		return true
 	end
 	
 	function ENT:State_Fall()
@@ -312,8 +290,25 @@ if SERVER then
 			end
 			
 			self:PlaySequenceAndMove( anim_key, 1, function( self, cycle) end)
-			self:RemoveState("Combat_Walk") 
+			self:AddState( "Combat_Walk" ) 
 			
+		end
+	end
+	
+	----------------------------------------------------------------------------------------------------
+	-- Truning code
+	----------------------------------------------------------------------------------------------------
+	
+	function ENT:Turn()
+	
+		if !IsValid( self:GetEnemy() ) then return end
+		
+		self:SetMovementTarget( self:GetEnemy():GetPos() )
+		local anim_key = self:CalcPosDirection( self:GetMovementTarget(), true )
+		if ( anim_key ~= "N" or anim_key ~= "NW" or anim_key ~= "NE" ) and (math.random(3) == 1 or anim_key == "S" or anim_key == "SW" or anim_key == "SE" ) then
+			self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, "Idle_To_Walk_"..anim_key ), 1, function(self, cycle)
+				if cycle > 0.35 and cycle < 0.8 then self:FaceEnemy() end 
+			end)
 		end
 	end
 	
@@ -328,7 +323,7 @@ if SERVER then
 			if event[2] == "melee" then
 				self:Attack({
 				damage = math.random(15,20),
-				angle = 90,
+				angle = 120,
 				range = 70,
 				type = DMG_SLASH,
 				viewpunch = Angle(5, math.random(-5, 5), 0)
@@ -368,14 +363,18 @@ if SERVER then
 		
 	end
 	
+	----------------------------------------------------------------------------------------------------
+	-- Pain
+	----------------------------------------------------------------------------------------------------
+	
 	function ENT:OnTakeDamage(dmg, hitgroup)
 	
 		local anim_key = nil
 		local damage = dmg:GetDamage()
 		local damagetype = dmg:GetDamageType()
 		local inflictor = dmg:GetInflictor()
-	
-		if damage > 5 and math.random(math.huge) == 1 then
+		
+		--[[if damage > 5 and math.random(3) == 1 then
 			local dir = self:CalcPosDirection( inflictor:GetPos() )
 			if dir == "N" then
 				anim_key = "falter_front_"..self:RX_TranslateHitgroup( hitgroup )
@@ -385,7 +384,7 @@ if SERVER then
 			self:CallInCoroutine(function()
 				self:PlayAnimationAndMove( anim_key, 1 )
 			end)
-		end
+		end]]
 	end
 	
 	----------------------------------------------------------------------------------------------------
@@ -447,11 +446,14 @@ if SERVER then
 		local damagetype = dmg:GetDamageType()
 		local inflictor = dmg:GetInflictor()
 		
-		local curcycle = 1
-		
 		print(hitgroup)
 		
-		if ( damage > 100 and hitgroup ~= HITGROUP_HEAD ) or ( damage > 300 ) or ( damagetype == DMG_BLAST ) then
+		if hitgroup == 8 then
+		
+			anim_key = "headshot_"..math.random(2)
+			print(anim_key)
+			
+		elseif ( damage > 100 and hitgroup ~= 8 ) or ( damage > 300 ) or ( damagetype == DMG_BLAST ) then
 		
 			-- "Classic" death
 		
@@ -479,33 +481,29 @@ if SERVER then
 				self:RX_CreateRagdoll( dmg, directory.."death1_scientist_left.mdl")
 				self:RX_CreateRagdoll( dmg, directory.."death1_scientist_right.mdl")
 			end
-		elseif  damage > 50 and hitgroup == 8 then
-			anim_key = "headshot_"..math.random(2)
-		elseif math.random(3) ~= 1 then
-			curcycle = 0.8
-			local dir = self:CalcPosDirection( inflictor:GetPos() )
-			if dir == "N" then
-				self:FaceInstant( inflictor:GetPos() )
-				anim_key = "death_heavy_"..self:RX_TranslateHitgroup( hitgroup )
-			elseif dir == "W" then
-				if hitgroup == 0 or hitgroup == 7 or hitgroup == 6 or hitgroup == 2 then anim_key = "death_heavy_left_lower" else anim_key = "death_heavy_left_upper" end
-			elseif dir == "E" then
-				if hitgroup == 0 or hitgroup == 7 or hitgroup == 6 or hitgroup == 2 then anim_key = "death_heavy_right_lower" else anim_key = "death_heavy_right_upper" end
-			elseif dir == "S" then 
-				anim_key = "death_heavy_back"
-			end
+			
 		end
 		self:SetCollisionGroup( COLLISION_GROUP_DEBRIS )
 		if anim_key then
-			print(anim_key)
-			self:PlayAnimationAndMove( anim_key, 1, function( self, cycle) if cycle > curcycle then self:BecomeRagdoll() end end)
+			self:PlayAnimationAndMove( anim_key, 1)
+			self:BecomeRagdoll()
 		end
-		self:BecomeRagdoll()
+		self:BecomeRagdoll( dmg )
 		
 	end
 	
 	
 else
+
+	function ENT:CustomThink() 
+		if CLIENT then
+			if self:HasEnemy() and IsValid(self:GetEnemy()) then
+				local enemypos = self:GetEnemy():GetPos() + self:GetEnemy():OBBCenter()
+				self:BoneLook("Head", enemypos, 80, 60, 10, 0.5)
+				self:BoneLook("Spine", enemypos, 40, 20, 10, 0.5)
+			end
+		end
+	end
 
 	function ENT:CustomDraw()
 	
