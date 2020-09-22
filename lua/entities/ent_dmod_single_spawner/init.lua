@@ -17,11 +17,9 @@ end
 -- It can be activated through input (for mapping and shit).
 
 function ENT:Input(input)
-
 	if input == "SpawnEntity" then
 		self:SpawnEntity()
 	end
-
 end
 
 	-- I dunno lol

@@ -22,3 +22,8 @@ end
 function ENT:SetMovementTarget(pos)
 	self.MovementTarget = pos or false
 end
+
+function ENT:CallInCoroutineOverride(callback) -- Thank you Roach, lol
+	local oldThread = self.BehaveThread
+	self.BehaveThread = coroutine.create(function() callback(self) self.BehaveThread = oldThread end)
+end

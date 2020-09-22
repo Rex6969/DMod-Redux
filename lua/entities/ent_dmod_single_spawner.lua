@@ -48,13 +48,13 @@ function ENT:SpawnEntity()
 	timer.Simple( self.SpawnDelay, 
 		function()
 			local spawn = self.ToSpawn
-			--if istable(spawn) then spawn = self:GetTableValue(spawn) end
+			if istable(spawn) then spawn = self:GetTableValue(spawn) end
 			local _ent = ents.Create(self.ToSpawn)
 			_ent:SetPos( self:GetPos() + Vector(0,0,-80) )
 			_ent:Activate()
 			_ent:Spawn()
-			undo.ReplaceEntity(_ent, self)
-			cleanup.ReplaceEntity(_ent, self)
+			undo.ReplaceEntity(self, _ent)
+			cleanup.ReplaceEntity(self, _ent)
 			self:Remove()
 		end
 	)

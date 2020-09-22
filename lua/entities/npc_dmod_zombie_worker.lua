@@ -67,8 +67,10 @@ else
 				local enemypos = self:GetEnemy():GetPos() + self:GetEnemy():OBBCenter()
 				self:BoneLook("SideHead", enemypos, 80, 60, 10, 0.5)
 				self:BoneLook("Spine", enemypos, 40, 20, 10, 0.5)
+				self:SetNextClientThink( CurTime() + 0.3 )
 			end
 		end
+		self:SetNextClientThink( CurTime() + 0.1 )
 	end
 
 end
