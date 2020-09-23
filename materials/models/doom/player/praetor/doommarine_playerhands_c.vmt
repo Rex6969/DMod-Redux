@@ -1,0 +1,10 @@
+VertexLitGeneric
+{
+	$basetexture models\doom\player\praetor\doommarine_playerhands_c
+	//$bumpmap models\doom\monsters\imp\imp_n
+	
+	//$phong 1
+	$phongexponent 40
+	$phongfresnelranges	"[0.5 1.2 1.5]"
+	$phongboost	1
+}
