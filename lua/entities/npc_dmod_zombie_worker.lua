@@ -6,7 +6,7 @@ ENT.PrintName = "Possessed Worker"
 ENT.Category = "DOOM"
 ENT.Models = {"models/doom/monsters/zombie/zombie_worker.mdl"}
 
-ENT.StartHealth = 150
+ENT.StartHealth = 80
 
 ENT.Factions = {"FACTION_DOOM"}
 

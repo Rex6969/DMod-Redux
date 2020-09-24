@@ -1,10 +1,15 @@
 VertexLitGeneric
 {
 	$basetexture models\doom\weapons\shotgun\shotgun_standard_c
-	//$bumpmap models\doom\monsters\imp\imp_n
+	$bumpmap models\doom\weapons\shotgun\shotgun_standard_n
 	
-	//$phong 1
-	$phongexponent 40
+	$envmap	env_cubemap
+	$envmaptint "[0.025 0.025 0.025]"
+	$envmapfresnel 1
+	//$basealphaenvmapmask 1
+	
+	$phong 1
+	$phongexponent 50
 	$phongfresnelranges	"[0.5 1.2 1.5]"
-	$phongboost	1
+	$phongboost	0.35
 }

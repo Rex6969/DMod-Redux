@@ -11,7 +11,7 @@ ENT.PrintName = "Possessed Scientist"
 ENT.Category = "DOOM"
 ENT.Models = {"models/doom/monsters/zombie/zombie_scientist.mdl"}
 
-ENT.StartHealth = 150
+ENT.StartHealth = 80
 
 ENT.Factions = {"FACTION_DOOM"}
 

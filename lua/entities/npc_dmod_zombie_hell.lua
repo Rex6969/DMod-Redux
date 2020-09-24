@@ -6,7 +6,7 @@ ENT.PrintName = "Unwilling"
 ENT.Category = "DOOM"
 ENT.Models = {"models/doom/monsters/zombie/zombie_hell.mdl"}
 
-ENT.StartHealth = 150
+ENT.StartHealth = 80
 ENT.Factions = {"FACTION_DOOM"}
 
 if SERVER then
@@ -38,27 +38,27 @@ if SERVER then
 			if rand == 1 then
 				anim_key = "gore_death5_scientist_1"
 				self:SetBodygroup( 0, 1 ) 
-				self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl")
+				self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl", self:OBBCenter())
 			elseif rand == 2 then
 				anim_key = "gore_death5_scientist_1"
 				self:SetBodygroup( 0, 2 ) 
-				self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl")
+				self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl", self:OBBCenter())
 			elseif rand == 3 then
 				anim_key = "gore_death5_scientist_2"
 				self:SetBodygroup( 0, 2 ) 
-				self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl")
+				self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl", self:OBBCenter())
 			elseif rand == 4 then
 				anim_key = "gore_death5_scientist_3"
 				self:SetBodygroup( 0, 2 ) 
-				self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl")
+				self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl", self:OBBCenter())
 			else
 				local gib = math.random(2)
 				if gib == 1 then
 					self:RX_CreateRagdoll( dmg, directory.."death5_hell_lower.mdl")
-					self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl")
+					self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl", self:OBBCenter())
 				else
 					self:RX_CreateRagdoll( dmg, directory.."death1_hell_right.mdl")
-					self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl")
+					self:RX_CreateRagdoll( dmg, directory.."death1_hell_left.mdl", self:OBBCenter())
 				end
 				self:Remove()
 			end
