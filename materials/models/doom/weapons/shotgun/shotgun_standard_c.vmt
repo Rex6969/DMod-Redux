@@ -4,12 +4,12 @@ VertexLitGeneric
 	$bumpmap models\doom\weapons\shotgun\shotgun_standard_n
 	
 	$envmap	env_cubemap
-	$envmaptint "[0.025 0.025 0.025]"
-	$envmapfresnel 1
-	//$basealphaenvmapmask 1
+	$normalmapalphaenvmapmask 1
+	$envmaptint "[0.02 0.02 0.02]"
+	$envmapfresnel 0.1
 	
 	$phong 1
-	$phongexponent 50
+	$phongexponent 65
 	$phongfresnelranges	"[0.5 1.2 1.5]"
 	$phongboost	0.35
 }

@@ -11,7 +11,7 @@ SWEP.Category = "DOOM"
 SWEP.Spawnable= true
 SWEP.AdminOnly = false
 
-SWEP.Primary.Damage = 15
+SWEP.Primary.Damage = 10
 SWEP.Primary.TakeAmmo = 1
 SWEP.Primary.ClipSize = -1
 SWEP.Primary.Ammo = "buckshot" --The ammo type will it use
@@ -37,7 +37,7 @@ SWEP.AutoSwitchTo = false
 SWEP.AutoSwitchFrom = false
 
 SWEP.ViewModelFlip		= false
-SWEP.ViewModelFOV		= 45
+SWEP.ViewModelFOV		= 43
 SWEP.ViewModel			= "models/doom/weapons/shotgun/shotgun.mdl"
 SWEP.WorldModel			= "models/weapons/w_shotgun.mdl"
 SWEP.UseHands           = false
@@ -54,11 +54,13 @@ function SWEP:GetTableValue( tbl )
 end
 
 function SWEP:PlayVMSequence( seq )
+	if not IsValid( self ) then return end 
 	local vm = self.Owner:GetViewModel( )
 	vm:SendViewModelMatchingSequence( vm:LookupSequence( seq ) )
 end
 
 function SWEP:VMSequenceDuration( seq )
+	if not IsValid( self ) then return 0 end 
 	local vm = self.Owner:GetViewModel( )
 	local seq = seq or self:GetSequence()
 	return vm:SequenceDuration( vm:LookupSequence( seq ) )
@@ -120,6 +122,11 @@ function SWEP:PrimaryAttack()
 		self:PlayVMSequence( "dryfire" )
 		return 
 	end
+	
+	local vm = self.Owner:GetViewModel()
+	ParticleEffectAttach( "d_muzzleflash", PATTACH_POINT_FOLLOW, vm, vm:LookupAttachment( "muzzle" ) )
+	
+	
 
 	self:TakePrimaryAmmo( self.Primary.TakeAmmo )
 	self:BulletAttack()

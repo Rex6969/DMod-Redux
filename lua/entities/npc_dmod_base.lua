@@ -24,42 +24,6 @@ if SERVER then
 	--ENT.Tbl_State = {} -- State stack
 
 	----------------------------------------------------------------------------------------------------
-	-- Purpose: Replacing DrGBase functions that don't work for me.
-	-- ~ Based on DrG_RandomPos but exists only for this base and it's children. Sorry for stealing your code, Drago.
-	----------------------------------------------------------------------------------------------------
-	
-	function ENT:RX_RandomPos(_entity, _min, _max)
-		if not IsValid(_entity) then return end
-		if isnumber(_max) then
-			local pos = _entity:GetPos() + Vector(math.random(-100, 100), math.random(-100, 100), 0):GetNormalized() * math.random(_min, _max)
-			if navmesh.IsLoaded() then
-				local area = navmesh.GetNearestNavArea(pos)
-				if IsValid(area) then
-					local pos = area:GetClosestPointOnArea(pos)
-					return pos
-				end
-			end
-		end
-		return self:RX_RandomPos(_entity, 0, _max)
-	end
-	
-	function ENT:GoTo(pos, tolerance, callback)
-		if not isfunction(callback) then callback = function() end end
-		while true do
-		local res = self:FollowPath(pos, tolerance)
-		if res == "reached" then return true
-		elseif res == "unreachable" then
-			return false
-		else
-			res = callback(self, self:GetPath())
-			if isbool(res) then return res end
-				self:YieldCoroutine(true)
-			end
-		end
-		return false
-	end
-	
-	----------------------------------------------------------------------------------------------------
 	-- Purpose: animation setters/getters
 	----------------------------------------------------------------------------------------------------
 	
@@ -76,34 +40,30 @@ if SERVER then
 	end
 
 	----------------------------------------------------------------------------------------------------
-	-- Purpose: gore function
+	-- Purpose: rewrote death functionality
 	----------------------------------------------------------------------------------------------------
 	
-	function ENT:D_Gib(tbl,dmg)
-
-		if not tbl then return end
-		
-		for k,v in pairs(tbl) do
-			self.gib = ents.Create("ent_dmod_gib")
-			self.gib:SetPos( self:GetBonePosition( self:LookupBone( k ) ) )
-			self.gib:SetAngles( self:GetAngles() + AngleRand(-30,-30) )
-			self.gib:SetOwner(self)
-			self.gib:SetModel(v)
-				
-			self.gib:Spawn()
-			self.gib:Activate()
-
-			local phys = self.gib:GetPhysicsObject()
-			if IsValid(phys) then
-				phys:SetVelocity( VectorRand() * 80 + self:GetUp()*100 + dmg:GetDamageForce():GetNormalized()*math.random(150,250) )
+	function ENT:Death(dmg, hitgroup)
+		if dmg:GetDamage() > self:Health() and self:Alive() then
+			self:SetNW2Bool("DrGBaseDead", true)
+			self:SetCollisionGroup( COLLISION_GROUP_DEBRIS )
+			if dmg:GetDamage() >= self.GibDamage then
+				self:HandleDeath( dmg, hitgroup )
+			else
+				self:DeathSounds()
+				self:RX_RagdollDeath()
 			end
-				
 		end
 
-		self.HasDeathRagdoll = false
-		self:Remove()
 	end
 	
+	function ENT:OnKilled()
+		return
+	end
+	
+	function ENT:DeathSounds()
+	end
+
 	----------------------------------------------------------------------------------------------------
 	-- Purpose: it should be used to restrict weird poseparameters to be set
 	-- ~ ONLY should be used with 4-way blends

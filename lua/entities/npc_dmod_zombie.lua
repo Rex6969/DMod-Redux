@@ -11,7 +11,7 @@ ENT.PrintName = "Possessed Scientist"
 ENT.Category = "DOOM"
 ENT.Models = {"models/doom/monsters/zombie/zombie_scientist.mdl"}
 
-ENT.StartHealth = 80
+ENT.StartHealth = 75
 
 ENT.Factions = {"FACTION_DOOM"}
 
@@ -25,6 +25,10 @@ ENT.ClimbLedges = true
 ENT.ClimbLedgesMinHeight = 32
 ENT.ClimbLedgesMaxHeight = 256
 ENT.LedgeDetectionDistance = 30
+
+ENT.GibDamage = 60
+ENT.FalterDamage = 30
+ENT.CurrentDeathAnimation = ""
 
 ENT.Tbl_Animations = {
 	["Melee"] = {"melee_lunge_short_left_arm","melee_lunge_short_right_arm","melee_forward"},
@@ -69,6 +73,10 @@ if SERVER then
 		self:SetDefaultRelationship( D_HT )
 		self:AddState( "Spawn" )
 		self:SetCooldown( "Next_Idle_Sound", math.random(3,8) )
+		
+		self:SetMaxHealth( self.StartHealth )
+		self:SetHealth( self:GetMaxHealth() )
+		
 		--self:SetNWBool("Gloryable", true)
 		--self:CallOnClient(nil, function() self:SetIK(true) end)
 	end
@@ -78,7 +86,7 @@ if SERVER then
 		self:IdleSounds()
 		--self:MeleeAttack(self:IsMoving())
 		--PrintTable(self.Tbl_State)
-		
+
 	end
 	
 	----------------------------------------------------------------------------------------------------
@@ -218,7 +226,7 @@ if SERVER then
 			self:AttackSounds()
 			self:OverwriteState("Combat") 
 			self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, anim_key), 1, function(self, cycle)
-				--if cycle < 0.3 and IsValid( self:GetEnemy() ) then self:FaceEnemy() end 
+				if cycle < 0.3 and IsValid( self:GetEnemy() ) then self:FaceEnemy() end 
 			end)
 		end
 	end
@@ -283,8 +291,6 @@ if SERVER then
 			
 			local GroundDist = self:GroundDist( self:GetPos() + self:GetForward() * 30, 256 )
 			local anim_key = "" 
-			
-			print(GroundDist)
 			
 			--self:SetVelocity( Vector( 0, 0, 0 ) )
 			
@@ -373,26 +379,30 @@ if SERVER then
 	-- Pain
 	----------------------------------------------------------------------------------------------------
 	
-	function ENT:OnTakeDamage(dmg, hitgroup)
+	function ENT:OnTakeDamage( dmg, hitgroup )
+	
+		if self:IsDead() then return end
 	
 		local anim_key = nil
 		local damage = dmg:GetDamage()
 		local damagetype = dmg:GetDamageType()
 		local inflictor = dmg:GetInflictor()
 		
-		if math.random( 5 ) ~= 1 and self:GetCooldown( "Next_Falter" ) <= 0 then
+		if ( math.random( 3 ) == 1 or damage > self.FalterDamage ) and self:GetCooldown( "Next_Falter" ) <= 0 then
 		
 			local dir = self:CalcPosDirection( inflictor:GetPos() )
+			--print(dir)
 		
-			if damage > 5 and hitgroup == 8 then
+			if hitgroup == 8 then
 				if dir == "W" then anim_key = "falter_front_head" else anim_key = "falter_back_head" end
-			elseif damage > 10 then
+			else
 				if dir == "W" then
 					if hitgroup == HITGROUP_CHEST or hitgroup == HITGROUP_STOMACH then anim_key = "falter_front_chest"
 					elseif hitgroup == HITGROUP_LEFTARM then anim_key = "falter_front_leftarm"
 					elseif hitgroup == HITGROUP_RIGHTARM then anim_key = "falter_front_rightarm"
 					elseif hitgroup == HITGROUP_LEFTLEG then anim_key = "falter_front_leftleg"
 					elseif hitgroup == HITGROUP_RIGHTLEG then anim_key = "falter_front_rightleg"
+					else anim_key = self:GetTableValue({"falter_front_leftleg"},{"falter_front_rightleg","falter_front_chest"})
 					end
 				else
 					if hitgroup == HITGROUP_CHEST or hitgroup == HITGROUP_STOMACH then anim_key = "falter_back_chest"
@@ -400,28 +410,22 @@ if SERVER then
 					elseif hitgroup == HITGROUP_RIGHTARM then anim_key = "falter_back_rightarm"
 					elseif hitgroup == HITGROUP_LEFTLEG then anim_key = "falter_front_leftleg"
 					elseif hitgroup == HITGROUP_RIGHTLEG then anim_key = "falter_front_rightleg"
+					else anim_key = self:GetTableValue({"falter_front_leftleg"},{"falter_front_rightleg","falter_back_chest"})
 					end
 				end
 			end
 		
 			if anim_key then
 				self:CallInCoroutineOverride(function() self:PlayAnimationAndMove(anim_key) end)
-				self:SetCooldown( "Next_Falter", math.Rand( 5, 6 ) )
+				self:SetCooldown( "Next_Falter", math.Rand( 2, 3 ) )
 			end
 		
 		end
 		
-		--[[if damage > 5 and math.random(3) == 1 then
-			local dir = self:CalcPosDirection( inflictor:GetPos() )
-			if dir == "N" then
-				anim_key = "falter_front_"..self:RX_TranslateHitgroup( hitgroup )
-			else
-				anim_key = "falter_back_"..self:RX_TranslateHitgroup( hitgroup )
-			end
-			self:CallInCoroutine(function()
-				self:PlayAnimationAndMove( anim_key, 1 )
-			end)
-		end]]
+		self:Death( dmg, hitgroup ) 
+		
+		return 1
+		
 	end
 	
 	----------------------------------------------------------------------------------------------------
@@ -443,38 +447,34 @@ if SERVER then
 	
 	end
 
-	function ENT:OnDeath( dmg, hitgroup )
-		
-		local anim_key = nil
-		
+	function ENT:HandleDeath( dmg, hitgroup )
+	
 		local damage = dmg:GetDamage()
 		
 		local damagetype = dmg:GetDamageType()
 		local inflictor = dmg:GetInflictor()
 		
-		dmg:GetAttacker():TakeDamage(dmg:GetDamage(), self)
+		--dmg:GetAttacker():TakeDamage(dmg:GetDamage(), self)
 		
 		if hitgroup == 8 then
-		
-			anim_key = "headshot_"..math.random(2)
-			
-		elseif ( damage > 100 and hitgroup ~= 8 ) or ( damage > 300 ) or ( damagetype == DMG_BLAST ) then
+			self.CurrentDeathAnimation = "headshot_"..math.random(2)
+		else
 			self:RX_GenericGibs( dmg, 8 )
 			local rand = math.random(1,8)
 			if rand == 1 then
-				anim_key = "gore_death5_scientist_1"
+				self.CurrentDeathAnimation = "gore_death5_scientist_1"
 				self:SetBodygroup( 0, 1 ) 
 				self:RX_CreateRagdoll( dmg, directory.."death1_scientist_left.mdl")
 			elseif rand == 2 then
-				anim_key = "gore_death5_scientist_1"
+				self.CurrentDeathAnimation = "gore_death5_scientist_1"
 				self:SetBodygroup( 0, 2 ) 
 				self:RX_CreateRagdoll( dmg, directory.."death1_scientist_left.mdl")
 			elseif rand == 3 then
-				anim_key = "gore_death5_scientist_2"
+				self.CurrentDeathAnimation = "gore_death5_scientist_2"
 				self:SetBodygroup( 0, 2 ) 
 				self:RX_CreateRagdoll( dmg, directory.."death6_scientist_upper.mdl")
 			elseif rand == 4 then
-				anim_key = "gore_death5_scientist_3"
+				self.CurrentDeathAnimation = "gore_death5_scientist_3"
 				self:SetBodygroup( 0, 2 ) 
 				self:RX_CreateRagdoll( dmg, directory.."death6_scientist_upper.mdl")
 			else
@@ -488,14 +488,18 @@ if SERVER then
 				end
 				self:Remove()
 			end
-			
 		end
-		self:SetCollisionGroup( COLLISION_GROUP_DEBRIS )
-		local ragdoll
-		if anim_key ~= nil then self:PlayAnimationAndMove( anim_key, 1) ragdoll = self:BecomeRagdoll() else self:DeathSounds() ragdoll = self:BecomeRagdoll( dmg ) end
-		timer.Simple( 5, function() if IsValid( ragdoll ) then ragdoll:Remove() end end)
+		
+		self:CallInCoroutineOverride(function()
+			self:PlayAnimationAndMove( self.CurrentDeathAnimation )
+			self:RX_RagdollDeath()
+		end)
+		
 	end
 	
+	function ENT:OnKilled()
+		return true
+	end
 	
 else
 
