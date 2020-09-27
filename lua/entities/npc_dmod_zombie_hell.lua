@@ -65,7 +65,6 @@ else
 		if CLIENT then
 			if self:HasEnemy() and IsValid(self:GetEnemy()) then
 				local enemypos = self:GetEnemy():GetPos() + self:GetEnemy():OBBCenter()
-				self:BoneLook("head", enemypos, 80, 60, 10, 0.5)
 				self:BoneLook("spine", enemypos, 40, 20, 10, 0.5)
 			end
 			self:SetNextClientThink( CurTime() + 0.1 )

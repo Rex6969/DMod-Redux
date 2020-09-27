@@ -82,8 +82,12 @@ if SERVER then
 	end
 	
 	function ENT:AIBehaviour()
-		self:UpdateState(3)
-		self:IdleSounds()
+	
+		--if self:GetCooldown( "Next_AI_Processing" ) <= 0 then
+			self:UpdateState(3)
+			self:IdleSounds()
+			--self:SetCooldown( "Next_AI_Processing", 0.1 )
+		--end
 		--self:MeleeAttack(self:IsMoving())
 		--PrintTable(self.Tbl_State)
 
@@ -187,7 +191,7 @@ if SERVER then
 		if IsValid( self:GetEnemy() ) then
 			if self:GetCooldown( "Next_Chase" ) <= 0 or self:IsInRange( self:GetEnemy(), 200 ) then
 				self:SetMovementTarget( self:GetEnemy():GetPos() )
-				self:Turn()
+				--self:Turn()
 				self:SetCooldown( "Next_Chase", math.Rand( 0, 3 ) )
 			end
 		end
@@ -402,7 +406,7 @@ if SERVER then
 					elseif hitgroup == HITGROUP_RIGHTARM then anim_key = "falter_front_rightarm"
 					elseif hitgroup == HITGROUP_LEFTLEG then anim_key = "falter_front_leftleg"
 					elseif hitgroup == HITGROUP_RIGHTLEG then anim_key = "falter_front_rightleg"
-					else anim_key = self:GetTableValue({"falter_front_leftleg"},{"falter_front_rightleg","falter_front_chest"})
+					else anim_key = self:GetTableValue({"falter_front_leftleg","falter_front_rightleg","falter_front_chest"})
 					end
 				else
 					if hitgroup == HITGROUP_CHEST or hitgroup == HITGROUP_STOMACH then anim_key = "falter_back_chest"
@@ -410,7 +414,7 @@ if SERVER then
 					elseif hitgroup == HITGROUP_RIGHTARM then anim_key = "falter_back_rightarm"
 					elseif hitgroup == HITGROUP_LEFTLEG then anim_key = "falter_front_leftleg"
 					elseif hitgroup == HITGROUP_RIGHTLEG then anim_key = "falter_front_rightleg"
-					else anim_key = self:GetTableValue({"falter_front_leftleg"},{"falter_front_rightleg","falter_back_chest"})
+					else anim_key = self:GetTableValue({"falter_front_leftleg","falter_front_rightleg","falter_back_chest"})
 					end
 				end
 			end

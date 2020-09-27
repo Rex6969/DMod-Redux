@@ -43,7 +43,7 @@ function ENT:RX_CreateRagdoll( dmg, body, offset )
 	
 	--ParticleEffect( "d_bloodsplat_big", self:GetPos() + self:OBBCenter(), self:GetAngles(), ragdoll )
 	
-	--timer.Simple( 5, function() if IsValid( ragdoll ) then ragdoll:Remove() end end)
+	timer.Simple( 5, function() if IsValid( ragdoll ) then ragdoll:Remove() end end)
 	
 	local phys = ragdoll:GetPhysicsObject()
 	if IsValid(phys) then
@@ -53,7 +53,7 @@ end
 
 function ENT:RX_RagdollDeath() 
 	ragdoll = self:BecomeRagdoll()
-	--timer.Simple( 5, function() if IsValid( ragdoll ) then ragdoll:Remove() end end)
+	timer.Simple( 5, function() if IsValid( ragdoll ) then ragdoll:Remove() end end)
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -87,8 +87,8 @@ function ENT:RX_CreateGib( dmg, ent )
 		ParticleEffectAttach("d_bloodsplat",PATTACH_ABSORIGIN_FOLLOW,ent,0)
 	end
 	
-	timer.Simple( math.Rand(1,3), function() if IsValid( ent ) then ent:StopParticles() end end)
-	timer.Simple( math.Rand(3,7), function() if IsValid( ent ) then ent:Remove() end end)
+	timer.Simple( math.random( 10, 20 )*0.05 , function() if IsValid( ent ) then ent:StopParticles() end end)
+	timer.Simple( math.random( 30, 70 )*0.1 , function() if IsValid( ent ) then ent:Remove() end end)
 	
 	local phys = ent:GetPhysicsObject()
 	if IsValid(phys) then

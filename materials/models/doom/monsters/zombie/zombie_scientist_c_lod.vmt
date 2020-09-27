@@ -1,0 +1,15 @@
+VertexLitGeneric
+{
+	$basetexture models\doom\monsters\zombie\zombie_scientist_c
+	//$basetexture models\util\util_n
+	$bumpmap models\util\util_n
+	$selfillummask models\doom\monsters\zombie\zombie_scientist_lmap
+	
+	$phong 1
+	$phongexponent 40
+	$phongfresnelranges	"[0.5 1.2 1.5]"
+	$phongboost	0.25
+	
+	$selfillum 1
+	$selfillumtint "[5 3.5 0]"
+}

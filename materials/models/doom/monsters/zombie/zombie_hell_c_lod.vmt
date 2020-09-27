@@ -1,0 +1,11 @@
+VertexLitGeneric
+{
+	$basetexture models\doom\monsters\zombie\zombie_hell_c
+	//$basetexture models\util\util_n
+	$bumpmap models\util\util_n
+	
+	$phong 1
+	$phongexponent 40
+	$phongfresnelranges	"[0.5 1.2 1.5]"
+	$phongboost	0.25
+}
