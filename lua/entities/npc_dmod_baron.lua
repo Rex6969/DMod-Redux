@@ -63,6 +63,11 @@ if SERVER then
 	["Ranged_W"] = {"throw_left"},
 	["Ranged_E"] = {"throw_right"},
 	
+	["Turn_N"] = {""},
+	["Turn_W"] = {"turn90left"},
+	["Turn_E"] = {"turn90right"},
+	["Turn_S"] = {"turn157left"},
+	
 	
 	
 	["Melee_Moving"] = {"meleeforward_charge1"}
@@ -89,6 +94,8 @@ if SERVER then
 		self:SetIdleAnimation( "idle" )
 		self:SetWalkAnimation( "walk" )
 		self:SetRunAnimation( "Charge" )
+		
+		self.EnableFocusTracking = true
 		
 	end
 	
@@ -193,6 +200,10 @@ if SERVER then
 			self:SetCooldown( "NEXT_FocusTrackUpdate", 0.5 )
 		end
 		
+		if ( self:GetCooldown( "NEXT_Turn" ) <= 0 ) then
+			self:Turn()
+		end
+		
 		local Enemy = self:GetEnemy()
 		
 		----------------------------------------------------------------------------------------------------
@@ -222,7 +233,10 @@ if SERVER then
 					self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, Anim_Key ), nil, function( self, cycle )
 						if cycle > 0.35 && cycle < 0.5 then self:FaceEnemy() end
 					end)
+					
 					self:SetCooldown( "NEXT_MeleeAttack", 0.5 ) 
+					
+					self:Turn()
 					
 				end
 			
@@ -246,7 +260,10 @@ if SERVER then
 					self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, Anim_Key ), nil, function( self, cycle )
 						if cycle < 0.1 then self:FaceEnemy() end
 					end)
+					
 					self:SetCooldown( "NEXT_LeapAttack", math.random( 30, 50 )*0.1 ) 
+					
+					self:Turn()
 					
 				end
 				
@@ -264,11 +281,14 @@ if SERVER then
 					self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, Anim_Key ), nil, function( self, cycle )
 						if cycle > 0.5 then self:FaceEnemy() end
 					end)
+					
 					if Anim_Key then 
 						self:SetCooldown( "NEXT_RangeAttack", math.random( 10, 40 )*0.1 ) 
 						self:SetCooldown( "NEXT_LeapAttack", math.random( 5, 20 )*0.1 ) 
 						self:DelayAllyRangeAttack()
 					end
+					
+					self:Turn()
 				
 				end
 				
@@ -285,8 +305,13 @@ if SERVER then
 		if ( !self:GetInState() ) then self:SetInState( true ) end
 	
 		if ( self:GetCooldown( "NEXT_Wander" ) <= 0 ) then
+		
 			self:SetMovementTarget( self:RX_RandomPos( self, 500, 600 ) )
-			self:SetCooldown( "NEXT_Wander", math.random(50,60)*0.1 )
+			
+			self:SetCooldown( "NEXT_Wander", math.random( 70, 90 )*0.1 )
+			
+			self:Turn()
+			
 		end
 	
 		local targ = self:GetMovementTarget()
@@ -298,8 +323,10 @@ if SERVER then
 	
 		if ( !self:GetInState() ) then self:SetInState( true ) end
 	
-		local Enemy = self:GetEnemy()
-		if ( IsValid(Enemy) ) then self:FollowPath( Enemy:GetPos() ) end
+		if not self:HasEnemy() then return end
+		self:SetMovementTarget( self:GetEnemy():GetPos() )
+		local targ = self:GetMovementTarget()
+		if targ then self:FollowPath( targ, 100 ) end
 	
 	end
 	
@@ -310,7 +337,7 @@ if SERVER then
 		
 		local Enemy = self:GetEnemy()
 		
-		if ( event[1] == "attack" ) and IsValid( Enemy ) then
+		if ( event[1] == "attack" ) && IsValid( Enemy ) then
 		
 			if event[2] == "melee" then
 			
@@ -356,7 +383,7 @@ if SERVER then
 				local att = event[3].."hand"
 				
 				self:StopParticles()
-				self:EmitSound( "doom/monsters/baron/throw_fireball.ogg", 80 )
+				self:EmitSound( "doom/monsters/baron/throw_fireball.ogg", 85 )
 				
 				local fireball = self:CreateProjectile( "ent_dmod_baron_fireball" )
 				fireball:SetPos( self:GetAttachment( self:LookupAttachment(att) ).Pos )
@@ -399,7 +426,7 @@ if SERVER then
 			end
 		
 			
-		elseif ( event[1] == "jump" ) and IsValid( Enemy ) then
+		elseif ( event[1] == "jump" ) && IsValid( Enemy ) then
 	
 			local EnemyDist = self:GetPos():Distance( Enemy:GetPos() )
 		
@@ -426,6 +453,23 @@ if SERVER then
 		print( event[1], " ", event[2] )
 		
 	end
+	
+	----------------------------------------------------------------------------------------------------
+	
+	function ENT:Turn()
+	
+		if not self:GetMovementTarget() then return end
+	
+		local dir = self:CalcPosDirection( self:GetMovementTarget() )
+		local Anim_Key = !(dir == "N" || dir == "NE" || dir == "NW") && ( self:IsRunning() && "Turn_Charge_"..dir || "Turn_"..dir ) || ""
+		if Anim_Key ~= "" then
+			self:SetCooldown( "NEXT_Turn", math.random( 5, 15 ) * 0.1 )
+			self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, Anim_Key ) )
+		end
+
+	end
+	
+	----------------------------------------------------------------------------------------------------
 	
 	function ENT:OnUpdateAnimation()
 		if self:IsDown() || self:IsDead() then return end

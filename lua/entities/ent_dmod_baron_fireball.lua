@@ -61,7 +61,7 @@ function ENT:PhysicsCollide(data,phys)
 			
 			util.Decal( "FadingScorch", self:GetPos(), self:GetPos() + self:GetForward() * 50, self )
 			
-			--ParticleEffect("d_baron_fireball_explosion", data.HitPos + data.HitNormal, self:GetAngles() )
+			ParticleEffect("d_baron_fireballexplosion", data.HitPos + data.HitNormal, self:GetAngles() )
 			--util.ScreenShake( self:GetPos(), 50, 5, 0.5, 400 )
 			
 			--if data.HitEntity:IsPlayer() then
