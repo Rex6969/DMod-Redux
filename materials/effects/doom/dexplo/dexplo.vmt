@@ -1,0 +1,7 @@
+"SpriteCard"
+{
+	$basetexture effects/doom/dexplo/dexplo_c
+	$overbrightfactor 1.5
+	$addself 0.5
+	//$additive 1
+}

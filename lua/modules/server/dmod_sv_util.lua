@@ -49,13 +49,12 @@ function ENT:GoTo(pos, tolerance, callback)
 	return false
 end
 
-function ENT:GetMovementTarget()
-	return self.MovementTarget or false
-end
+function ENT:GetMovementTarget() return self.MovementTarget or false end
+function ENT:SetMovementTarget(pos) self.MovementTarget = pos or false end
 
-function ENT:SetMovementTarget(pos)
-	self.MovementTarget = pos or false
-end
+function ENT:SetIdleAnimation(anim) self.IdleAnimation = anim end
+function ENT:SetWalkAnimation(anim) self.WalkAnimation = anim end
+function ENT:SetRunAnimation(anim) self.RunAnimation = anim end
 
 function ENT:CallInCoroutineOverride(callback) -- Thank you Roach, lol
 	local oldThread = self.BehaveThread

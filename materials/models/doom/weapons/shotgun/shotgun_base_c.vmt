@@ -6,10 +6,12 @@ VertexLitGeneric
 	$envmap	env_cubemap
 	$normalmapalphaenvmapmask 1
 	$envmaptint "[0.02 0.02 0.02]"
-	$envmapfresnel 0.1
+	$envmapfresnel 1
 	
 	$phong 1
-	$phongexponent 65
+	$phongexponent 60
 	$phongfresnelranges	"[0.5 1.2 1.5]"
 	$phongboost	0.35
+	
+	$halflambert 1
 }

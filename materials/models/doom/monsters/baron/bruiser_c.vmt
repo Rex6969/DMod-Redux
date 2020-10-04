@@ -1,0 +1,19 @@
+VertexLitGeneric
+{
+	$basetexture models\doom\monsters\baron\bruiser_c
+	$bumpmap models\doom\monsters\baron\bruiser_n
+	$phongexponenttexture models\doom\monsters\baron\bruiser_mask
+	
+	$phong					1
+	$phongfresnelranges		"[0.5 1.2 1]"
+	$phongboost				1
+	
+	$envmap 				env_cubemap
+	$envmaptint 			"[0.02 0.02 0.02]"
+	$normalmapalphaenvmapmask 1
+	
+	$rimlight				1
+	$rimlightexponent       8
+	$rimlightboost          0.2
+	$rimmask				1
+}

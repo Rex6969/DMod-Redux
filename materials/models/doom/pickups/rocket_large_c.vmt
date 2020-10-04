@@ -1,0 +1,11 @@
+VertexLitGeneric
+{
+	$basetexture models\doom\pickups\rocket_large_c
+	//$selfillummask models\doom\monsters\zombie\zombie_scientist_lmap
+	
+	$envmap env_cubemap
+	$envmaptint "[0.2 0.1 0]"
+	
+	$selfillum 1
+	$selfillumtint "[20 10 0]"
+}

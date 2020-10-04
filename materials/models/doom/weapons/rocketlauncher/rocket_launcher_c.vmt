@@ -1,0 +1,15 @@
+VertexLitGeneric
+{
+	$basetexture models\doom\weapons\rocketlauncher\rocket_launcher_c
+	$bumpmap models\doom\weapons\rocketlauncher\rocket_launcher_n
+
+	$envmap	env_cubemap
+	$normalmapalphaenvmapmask 1
+	$envmaptint "[0.1 0.1 0.1]"
+	$envmapfresnel 0.1
+	
+	$phong 1
+	$phongexponent 65
+	$phongfresnelranges	"[0.5 1.2 1.5]"
+	$phongboost	1
+}

@@ -1,7 +1,7 @@
 if not DrGBase then return end
 ENT.Base = "npc_dmod_base"
 
-include("modules/server/dmod_sv_state.lua") -- FSM functions
+include("modules/server/dmod_sv_ai.lua") -- FSM functions
 include("modules/server/dmod_sv_util.lua") -- Util functions
 include("modules/server/dmod_sv_gore.lua") -- Util functions
 

@@ -1,11 +1,17 @@
 if not DrGBase then return end
 ENT.Base = "npc_dmod_base"
 
+--include("modules/client/dmod_cl_util.lua") -- Util functions
+AddCSLuaFile("modules/client/dmod_cl_util.lua")
+
+if SERVER then
 include("modules/server/dmod_sv_state.lua") -- FSM functions
 include("modules/server/dmod_sv_util.lua") -- Util functions
 include("modules/server/dmod_sv_gore.lua") -- Util functions
 
-include("modules/dmod_meta.lua") -- custom functions
+include("modules/dmod_meta.lua")
+end
+
 
 ENT.PrintName = "Imp"
 ENT.Category = "DOOM"
@@ -56,30 +62,45 @@ ENT.Tbl_Animations = {
 	["Ranged_Move_S"] = {"throw_moving_right"},
 	
 	["Stop_N"] = {"run_forward_to_idle"},
-	["Stop_NE"] = {"run_forward_to_idle"},
-	["Stop_NW"] = {"run_forward_to_idle"},
 	["Stop_W"] = {"run_forward_turn_left_to_idle"},
-	["Stop_SW"] = {"run_forward_turn_left_to_idle"},
 	["Stop_E"] = {"run_forward_turn_right_to_idle"},
-	["Stop_SE"] = {"run_forward_turn_right_to_idle"},
 	["Stop_S"] = {"run_forward_turn_left_180_to_idle","run_forward_turn_right_180_to_idle"},
 	
 	["Stop_Throw_N"] = {"run_forward_throw_to_idle"},
-	["Stop_Throw_NE"] = {"run_forward_throw_to_idle"},
-	["Stop_Throw_NW"] = {"run_forward_throw_to_idle"},
 	["Stop_Throw_W"] = {"run_forward_throw_turn_left_to_idle"},
-	["Stop_Throw_SW"] = {"run_forward_throw_turn_left_to_idle"},
 	["Stop_Throw_E"] = {"run_forward_throw_turn_right_to_idle"},
-	["Stop_Throw_SE"] = {"run_forward_throw_turn_right_to_idle"},
-	["Stop_Throw_S"] = {"run_forward_throw_turn_left_180_to_idle","run_forward_turn_right_180_to_idle"}
+	["Stop_Throw_S"] = {"run_forward_throw_turn_left_180_to_idle","run_forward_turn_right_180_to_idle"},
+	
+	["Idle_To_Run_N"] = {"idle_to_run_forward"},
+	["Idle_To_Run_NE"] = {"idle_to_run_forward"},
+	["Idle_To_Run_NW"] = {"idle_to_run_forward"},
+	["Idle_To_Run_W"] = {"idle_turn_left_to_run_forward"},
+	["Idle_To_Run_SW"] = {"idle_turn_back_left_157_to_run_forward"},
+	["Idle_To_Run_E"] = {"idle_turn_right_to_run_forward"},
+	["Idle_To_Run_SE"] = {"idle_turn_back_right_157_to_run_forward"},
+	["Idle_To_Run_S"] = {"idle_turn_back_left_157_to_run_forward","idle_turn_back_right_157_to_run_forward"}
 }
+
+function ENT:CustomThink() 
+	if CLIENT then
+		if not self:HasEnemy() then return end
+		local EnemyPos = self:GetEnemy():GetPos()
+		self:BoneLook("head", EnemyPos, 80, 60, 6, 0.5)
+		self:BoneLook("spine2", EnemyPos, 80, 60, 4, 0.25)
+		self:BoneLook("spine", EnemyPos, 80, 60, 4, 0.25)
+		self:SetNextClientThink( CurTime() + 0.01 )
+	end
+end
 
 if SERVER then
 
 	ENT.Tbl_State = {}
 
 	function ENT:AIBehaviour()
+	
 		self:UpdateState(5)
+		
+		PrintTable( self.Tbl_State )
 		
 		--[[if not self:HasEnemy() then return end
 		local enemy = self:GetEnemy()
@@ -91,11 +112,16 @@ if SERVER then
 	function ENT:CustomInitialize()
 		self:SetDefaultRelationship( D_HT )
 		self:OverwriteState( "Spawn" )
+		
+		self.EnemyPos = self:GetForward() * 200
+		
 		self.BehaviorType = 1 --self:GetTableValue( { 0, 0, 0, 0, 1, 1, 2 } )
 		self:SetCooldown( "Next_Move", math.random( 30,55 )*0.1 )
 	end
 	
-	-- Idle block
+	----------------------------------------------------------------------------------------------------
+	-- Idle
+	----------------------------------------------------------------------------------------------------
 
 	function ENT:State_Spawn()
 		if !self:GetInState() then
@@ -117,7 +143,7 @@ if SERVER then
 			self:SetCooldown( "Next_Wander", 10 )
 		end
 		
-		if  self:GetMovementTarget() then self:FollowPath( self:GetMovementTarget() ) end
+		if self:GetMovementTarget() then self:FollowPath( self:GetMovementTarget() ) end
 		if not self:IsMoving() then self:SetCooldown( "Next_Wander", -1 ) end
 		
 		if self:HasEnemy() then return self:OverwriteState( "Combat" ) end
@@ -134,35 +160,126 @@ if SERVER then
 			self:SetIdleAnimation( "idle_combat" )
 			return self:SetInState(true)
 		end
-		
 		local enemy = self:GetEnemy()
 		if !self:HasEnemy() then return self:OverwriteState( "Idle" ) end
-		
 		local dist = self:GetHullRangeSquaredTo( enemy:GetPos() )
 		local canmove = ( self:GetCooldown( "Next_Move" ) <= 0 )
-		local aitype = self.BehaviorType
-		
-		if dist < 400^2 then
-			if aitype == 1 and dist < 300^2 then
-				return self:AddState( "Combat_Close" )
-			elseif math.random( 10 ) == 1 then
-				return  self:AddState( "Combat_Move" )
-			end
-			self:MeleeAttack( enemy, dist )
-			print("close")
-		elseif dist < 1250^2 then
-			print("mid")
-		elseif dist > 1250^2 then
-			print("far")
-		elseif dist > 1500^2 then
-			return self:AddState( "Combat_Move" )
+		if dist > 1500^2 then
+			self:AddState( "Combat_Move" )
+		else
+			self:AddState( "Combat_Surround" )
+		end
+	end
+	
+	----------------------------------------------------------------------------------------------------
+	
+	function ENT:State_Combat_Close()
+	
+		if !self:GetInState() then
+			self:SetIdleAnimation( "idle_combat" )
+			self:SetRunAnimation( "run" )
+			self:SetCooldown( "Next_Move" , math.random( 50, 70 ) * 0.1 )
+			return self:SetInState(true)
 		end
 		
-		--if self:GetCooldown( "Next_Move" ) <= 0 then return end
+		local enemy = self:GetEnemy()
+		local beh = self.BehaviorType
+		local dist = self:GetHullRangeSquaredTo( enemy )
 		
-		--self:RangedAttack()
-
+		if self:GetCooldown( "Next_Move" ) <= 0 then
+			if dist < 400^2 and math.random( 2 ) == 1 then
+				local path = self:RecomputeSurroundPath( self, 450, 650 )
+				if path then 
+					self:SetMovementTarget( path )
+					self:AddState( "Combat_Move", {CanRangeAttack = false} )
+				end
+			elseif dist > 400^2 then
+				self:OverwriteState( "Combat_Surround" )
+			end
+			self:SetCooldown( "Next_Move", math.random ( 5, 10 )*0.1 )
+		end
+		
+		if !self:IsMoving() and dist > 250 then
+			self:RangedAttack( enemy, dist, false )
+		end
+		self:MeleeAttack( enemy, dist )
 	end
+	
+	----------------------------------------------------------------------------------------------------
+	
+	function ENT:State_Combat_Surround()
+	
+		if !self:GetInState() then
+			self:SetIdleAnimation( "idle_combat" )
+			self:SetRunAnimation( "run" )
+			self:SetCooldown( "Next_Move" , math.random( 4, 7 ) * 0.1 )
+			return self:SetInState(true)
+		end
+
+		local enemy = self:GetEnemy()
+		local beh = self.BehaviorType
+		local dist = self:GetHullRangeSquaredTo( enemy )
+		
+		if self:GetCooldown( "Next_Move" ) <= 0 then
+		
+			if math.random( 2 ) == 1 and self:Visible( enemy ) then
+			
+				local path = self:RecomputeSurroundPath( self, 500, 650 )
+				if path then
+					self:AddState( "Combat_Move" )
+					self:SetCooldown( "Next_Move", math.random ( 50, 100 )*0.1 )
+				end
+				
+			else
+			
+				local path = self:RecomputeSurroundPath( enemy, 800, 1000 )
+				if path then
+					self:AddState( "Combat_Move" )
+					self:SetCooldown( "Next_Move", math.random ( 40, 100 )*0.1 )
+				end
+				
+			end
+			
+			if dist < 400^2 then
+				self:OverwriteState( "Combat_Close" )
+			elseif dist >1250^2 then
+				self:AddState( "Combat_Far" )
+			end
+			
+		end
+		
+		if dist > 250 then
+			self:RangedAttack( enemy, dist, false )
+		end
+		
+		self:MeleeAttack( enemy, dist )
+		
+	end
+	
+	----------------------------------------------------------------------------------------------------
+	
+	function ENT:State_Combat_Far()
+	
+		if !self:GetInState() then
+			self:SetIdleAnimation( "idle_combat" )
+			self:SetRunAnimation( "run" )
+			return self:SetInState(true)
+		end
+		
+		local enemy = self:GetEnemy()
+		local dist = self:GetHullRangeSquaredTo( enemy )
+		
+		if dist < 1250^2 or not self:Visible( enemy ) then
+			self:RemoveState()
+			self:SetCooldown( "Next_Move", math.random ( 5, 10 )*0.1 )
+		end
+		
+		if !self:IsMoving() and dist > 250 then
+			self:RangedAttack( enemy, dist, false )
+		end
+	end
+	
+	----------------------------------------------------------------------------------------------------
 	
 	function ENT:State_Combat_Move() 
 	
@@ -170,6 +287,17 @@ if SERVER then
 			local path = self:RecomputeSurroundPath( self:GetEnemy(), self.MinSurroundDist, self.MaxSurroundDist )
 			if path then self:SetMovementTarget( path )
 			else self:RemoveState() return end
+			
+			local anim_key = "Idle_To_Run_"..self:CalcPosDirection( self.loco:GetGroundMotionVector(), true )
+			self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, anim_key ), 1, function( self, cycle )
+				if cycle > 0.5 then
+					if self:VisibleVec( self:GetMovementTarget() ) then
+						self:FaceTowards( self:GetMovementTarget() )
+					else
+						self:FaceTowards( self:GetVelocity() )
+					end
+				end
+			end)
 			
 			self:SetIdleAnimation( "idle_combat" )
 			self:SetRunAnimation( "run" )
@@ -179,57 +307,16 @@ if SERVER then
 		if !self:HasEnemy() then self:OverwriteState("Idle") end
 		local enemy = self:GetEnemy()
 		local dist = self:GetHullRangeSquaredTo( enemy )
+		local canrangeattack = self:StateData().CanRangeAttack or true
 		
-		if dist < 300^2 then
-			return self:AddState( "Combat_Close" )
-		else
-			self:HandleMovement( enemy, path )
+		if self:HandleMovement( enemy ) then self:RemoveState() end
+		
+		if dist > 300^2 and canrangeattack then
 			self:RangedAttack( enemy, dist, true )
 		end
-		
-	end
-	
-	function ENT:State_Combat_Close()
-	
-		--print(h)
-	
-		if !self:GetInState() then
-			self:SetIdleAnimation( "idle_combat" )
-			self:SetRunAnimation( "run" )
-			return self:SetInState(true)
-		end
-		
-		--print( self.BehaviorType )
-		
-		local enemy = self:GetEnemy()
-		local beh = self.BehaviorType
-		local dist = self:GetHullRangeSquaredTo( enemy )
-		
-		if self:GetCooldown( "Next_Move" ) <= 0 then
-			if dist < 300^2 then
-				if beh == 1 then
-					self:SetMovementTarget( enemy:GetPos() )
-				elseif math.random( 10 ) == 1 then
-					self:OverwriteState( "Combat_Move" )
-				end
-			elseif dist > 400^2 then
-				self:OverwriteState( "Combat" )
-			end
-			self:SetCooldown( "Next_Move", 0.5 )
-		end
-		
-		local targ = self:GetMovementTarget()
-		if targ then self:HandleMovement( enemy ) end
-		
-		if !self:IsMoving() then
-			self:RangedAttack( enemy, dist, false )
-		end
-		
 		self:MeleeAttack( enemy, dist )
-	
+		
 	end
-	
-	
 	
 	----------------------------------------------------------------------------------------------------
 	-- Path following
@@ -237,27 +324,31 @@ if SERVER then
 	
 	function ENT:HandleMovement( argent )
 	
-		local path = self:FollowPath( self:GetMovementTarget(), 200 )
+		local path = self:FollowPath( self:GetMovementTarget(), 300 )
 		
 		if path == "reached" or path == "unreachable" then
-			local anim_key
+			local anim_key = "Stop_N"
 			local enemy = argent
-			self.loco:SetVelocity( Vector( 0, 0, 0 ) ) 
 			if self:HasEnemy() then
-				local dir = self:CalcPosDirection( argent:GetPos(), true )
+				local dir = self:CalcPosDirection( argent:GetPos() )
 				if math.random( 2 ) == 1 and self:Visible( argent ) then
 					anim_key = "Stop_Throw_"..dir
 				else
 					anim_key = "Stop_"..dir
 				end
-			else
-				anim_key = "Stop_N"
+				
+				print( dir )
+				print( anim_key )
+				
 			end
 			
+			self.loco:SetVelocity( Vector( 0, 0, 0 ) ) 
+			self:SetMovementTarget( self:GetPos() )
 			self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, anim_key ) )
-			self:OverwriteState( "Combat" )
-			self:SetCooldown( "Next_Move", math.random( 500, 700 )*0.01 )
+			self:SetCooldown( "Next_Move", math.random( 50, 75 )*0.1 )
+			return true
 		end
+		return false
 	end
 	
 	----------------------------------------------------------------------------------------------------
@@ -306,19 +397,18 @@ if SERVER then
 				if not self.does_move and  math.random( 1, 3 ) == 1 then
 					if dir == "N" then
 						anim_key = "Ranged"
-						self:SetCooldown( "Next_Ranged_Attack", math.random(20,45)*0.1 )
+						self:SetCooldown( "Next_Ranged_Attack", math.random( 20, 45 )*0.1 )
 					else
 						self:Turn()
 						return
 					end
 				elseif self.does_move and dir ~= "S" and math.random( 5 ) == 1 then
 					anim_key = "Ranged_Move_"..self:CalcPosDirection( enemy:GetPos(), true )
-					self:SetCooldown( "Next_Ranged_Attack", math.random(20,40)*0.1 )
+					self:SetCooldown( "Next_Ranged_Attack", math.random( 30, 50 )*0.1 )
 				end
 				self:PlayAnimationAndMove(self:ExtractAnimation( self.Tbl_Animations, anim_key), 1, function(self, cycle)
 					if self.does_move then 
 						if cycle > 0.3 and cycle < 0.5 then self:FaceTowards( self:GetMovementTarget() ) end
-						if cycle > 0.8 then self:SetMovementTarget( self:GetForward()*200 ) return true end
 					else
 						if cycle > 0.3 and cycle < 0.5 then self:FaceEnemy() end
 					end
@@ -365,11 +455,11 @@ if SERVER then
 		if event[1] == "attack" then
 			if event[2] == "melee" then
 				self:Attack({
-				damage = math.random(15,20),
-				angle = 135,
-				range = 80,
+				damage = 8,
+				angle = 155,
+				range = 90,
 				type = DMG_SLASH,
-				viewpunch = Angle(5, math.random(-5, 5), 0)
+				viewpunch = Angle(8, math.random(-5, 5), 0)
 				},
 				function(self, hit)
 					if #hit > 0 then
@@ -385,29 +475,20 @@ if SERVER then
 			end
 		elseif event[1] == "emit" then
 		
-			if event[2] == fireleft then
-				
-			elseif event[2] == fireleft then
-				
+			if event[2] == "fireleft" then
+				ParticleEffectAttach("d_fireball_notrail",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_left"))
+			elseif event[2] == "fireright" then
+				ParticleEffectAttach("d_fireball_notrail",PATTACH_POINT_FOLLOW,self,self:LookupAttachment("hand_right"))
 			end
 		
 		end
+		
+		print( event[1], " ", event[2] )
 		
 	end
 	
 else
 
-	function ENT:CustomThink() 
-		if CLIENT then
-			if self:HasEnemy() and IsValid(self:GetEnemy()) then
-				local enemypos = self:GetEnemy():GetPos() + self:GetEnemy():OBBCenter()
-				self:BoneLook("head", enemypos, 80, 60, 10, 0.5)
-				self:BoneLook("spine", enemypos, 60, 30, 10, 0.5)
-			end
-			self:SetNextClientThink( CurTime() + 0.1 )
-		end
-	end
-	
 end
 
 AddCSLuaFile()

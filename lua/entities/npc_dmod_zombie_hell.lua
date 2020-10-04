@@ -62,14 +62,13 @@ if SERVER then
 else
 
 	function ENT:CustomThink() 
-		if CLIENT then
-			if self:HasEnemy() and IsValid(self:GetEnemy()) then
-				local enemypos = self:GetEnemy():GetPos() + self:GetEnemy():OBBCenter()
-				self:BoneLook("spine", enemypos, 40, 20, 10, 0.5)
+		--[[if CLIENT then
+			if IsValid(self:GetEnemy()) then
+				local enemypos = self:GetEnemy():GetPos()
+				self:BoneLook("spine", enemypos, 60, 60, 10, 0.5)
 			end
-			self:SetNextClientThink( CurTime() + 0.1 )
-		end
-		--return true
+			self:SetNextClientThink( CurTime() + 0.01 )
+		end]]
 	end
 	
 end
