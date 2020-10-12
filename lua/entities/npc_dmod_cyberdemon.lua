@@ -29,7 +29,7 @@ ENT.CollisionBounds = Vector( 60, 60, 250 )
 
 ENT.StartHealth = 7000
 
-ENT.MaxYawRate = 100
+ENT.MaxYawRate = 50
 ENT.UseWalkframes = true
 
 ENT.BehaviourType = AI_BEHAV_CUSTOM
@@ -37,6 +37,13 @@ ENT.Factions = {"FACTION_DOOM"}
 
 ENT.Conditions = {}
 ENT.State = ""
+
+ENT.Stomp = {}
+ENT.Stomp.damage = math.random( 20, 25 )
+ENT.Stomp.angle = 180
+ENT.Stomp.range = 350
+ENT.Stomp.type = DMG_BLAST
+ENT.Stomp.viewpunch = Angle( 20, 0, 0)
 
 if SERVER then
 	
@@ -82,15 +89,17 @@ if SERVER then
 		if self:HasEnemy() then
 		
 			local Enemy = self:GetEnemy()
+			local DistSqr = self:GetPos():DistToSqr( Enemy:GetPos() )
 		
 			COND["COND_HAS_ENEMY"] = true
 			COND["COND_SEE_ENEMY"] = self:Visible( Enemy )
 			
+			COND["COND_CAN_MELEE_ATTACK"] = DistSqr < 350^2
+			COND["COND_CAN_RANGE_ATTACK"] = ( DistSqr < 2000^2 && !COND["COND_CAN_MELEE_ATTACK"] )
+			
 		else
 			COND["COND_HAS_ENEMY"] = false
 		end
-		
-		return
 		
 	end
 	
@@ -108,34 +117,49 @@ if SERVER then
 			self:SetState( "IDLE" )
 			
 		end
-		
-		local Enemy = self:GetEnemy()
-		local EnemyPos = Enemy:GetPos()
-		
+
 		if self:HasEnemy() then
+		
+			local Enemy = self:GetEnemy()
+			local EnemyPos = Enemy:GetPos()
+			local Dist = Enemy:GetPos()
 		
 			--[[if self:IsRunning() and COND["COND_SEE_ENEMY"] then]] --end
 			
 			self.Next_Rocket = self.Next_Rocket || CurTime()
-			if ( self.Next_Rocket < CurTime() && COND["COND_SEE_ENEMY"] && self:FindInCone( Enemy, 45 ) ) then
+			if ( self.Next_Rocket < CurTime() && COND["COND_SEE_ENEMY"] && COND["COND_CAN_RANGE_ATTACK"] && self:FindInCone( Enemy, 50 ) ) then
 			
 				self:StopParticles()
-				--self:EmitSound( "doom/monsters/baron/throw_fireball.ogg", 85 )
+				ParticleEffectAttach( "d_cyberdemon_rocket_explosion", PATTACH_POINT_FOLLOW, self, self:LookupAttachment( "weapon" ) )
+				self:EmitSound( "doom/monsters/cyberdemon/CyberDemon_RocketLaunch_"..math.random( 4 )..".ogg", 80 )
 				
 				local rocket = self:CreateProjectile( "proj_dmod_cyberdemon_rocket" )
 				rocket:SetPos( self:GetAttachment( self:LookupAttachment("weapon") ).Pos )
 				rocket:SetAngles( ( EnemyPos - ( self:GetPos()+self:OBBCenter() ) ):Angle() )
 				
-				local force = self:AimProjectile( rocket, 1200 )
+				local force = self:AimProjectile( rocket, 800 )
 				local phys = rocket:GetPhysicsObject()
 				
 				if IsValid( phys ) then
 					rocket:SetVelocity( force - ( Enemy:GetVelocity() * math.random() ) + VectorRand() * 30 )
 				end
 				
-				self.Next_Rocket = CurTime() + 0.33
+				self.Next_Rocket = CurTime() + 0.25
 				
 			end
+			
+			self.Next_Melee = self.Next_Melee || CurTime()
+			if ( self.Next_Melee < CurTime() && COND["COND_SEE_ENEMY"] && COND["COND_CAN_MELEE_ATTACK"] && self:FindInCone( Enemy, 90 ) ) then
+			
+				self:EmitSound( "doom/monsters/cyberdemon/cyberdemon_stomp.ogg", 80 )
+				self:PlayAnimationAndMove( "stomp_front_into" )
+				self:PlayAnimationAndMove( "stomp_front_attack" )
+				self:PlayAnimationAndMove( "stomp_front_toidle" )
+				
+				self.Next_Melee = CurTime() + math.random( 10, 20 ) * 0.1
+				
+			end
+			
 
 		end
 		
@@ -217,9 +241,8 @@ if SERVER then
 					self:DirectPoseParametersAt( self:GetEnemy():GetPos(), "aim_pitch", "aim_yaw", self:GetPos() )
 				end)
 				self.NextMovement = CurTime() + math.random()
+				self.Next_Turn = CurTime() + ( math.random( 5, 10 ) * 0.1 )
 			end
-			
-			self.Next_Turn = CurTime() + ( math.random( 10, 25 ) * 0.1 )
 			
 		end
 
@@ -240,6 +263,35 @@ if SERVER then
 		
 	end
 	
+	function ENT:HandleAnimEvent(event, time, cycle, type, options)
+	
+		local event = string.Explode(" ", options)
+		
+		print( event[1], event[2], event[3] )
+		
+		if event[1] == "emit" then
+			if event[2] == "step" then
+			
+				local step = event[3] == "left" && "L" || "R"
+				self:EmitSound( "doom/monsters/cyberdemon/CyberDemonSteps_"..step.."_0"..math.random(4)..".ogg", 90 )
+				util.ScreenShake( self:GetPos(), 30, 10, 0.5, 400 )
+				
+			end
+			
+		elseif event[1] == "attack" then
+			
+			if event[2] == "stomp" then
+			
+				ParticleEffectAttach( "d_cyberdemon_stomp", PATTACH_POINT_FOLLOW, self, self:LookupAttachment( "rightleg" ) )
+				util.ScreenShake( self:GetPos(), 50, 10, 0.5, 400 )
+				self:Attack(self.Stomp)
+				
+			end
+			
+		end
+		
+	end
+	
 else
 	
 end
@@ -254,20 +306,19 @@ local CyberdemonRocket = {}
 	
 	CyberdemonRocket.Models = {"models/weapons/w_missile_launch.mdl"}
 	CyberdemonRocket.Gravity = false
-	CyberdemonRocket.OnContactEffects = {"d_rpgrocket_explosion"}
-	CyberdemonRocket.OnContactDecals = {"Scorch"}
+	CyberdemonRocket.OnContactEffects = {"d_cyberdemon_rocket_explosion"}
+	CyberdemonRocket.OnContactDecals = {"FadingScorch"}
 	CyberdemonRocket.OnContactDelete = 0
 	
 	function CyberdemonRocket:CustomInitialize()
-		ParticleEffectAttach( "d_rpgrocket_trail", 1, self, 0)
+		ParticleEffectAttach( "d_cyberdemon_rocket", 1, self, 0)
 		self:DynamicLight( Color( 255, 120, 0 ), 400, 0.75 )
 	end
 	
 	function CyberdemonRocket:OnContact( ent )
-		self:EmitSound( "doom/weapons/rocketlauncher/rocket_explo_"..math.random( 6 )..".ogg", 80, nil, nil )
-		util.ScreenShake( self:GetPos(), 50, 5, 0.5, 400 )
-		self:DealDamage( ent,  math.random( 15, 20 ), DMG_BLAST )
-		self:RadiusDamage( math.random( 15, 20 ) , DMG_BLAST, 100, function(ent) return ent end)
+		self:EmitSound( "doom/monsters/cyberdemon/sfx_cyberdemon_burstRocket_explo_0"..math.random( 6 )..".ogg", 80, nil, nil )
+		util.ScreenShake( self:GetPos(), 30, 10, 0.5, 100 )
+		self:DealDamage( ent,  math.random( 10, 15 ), DMG_BLAST )
 	end
 
 	scripted_ents.Register( CyberdemonRocket, "proj_dmod_cyberdemon_rocket" )
