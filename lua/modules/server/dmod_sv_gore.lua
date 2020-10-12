@@ -1,3 +1,14 @@
+
+function ENT:OnKilled()
+	return
+end
+	
+function ENT:DeathSounds()
+end
+
+function ENT:CustomOnTakeDamage()
+end
+
 ----------------------------------------------------------------------------------------------------
 -- Purpose: legacy gore function 
 -- OBSOLETE
@@ -51,26 +62,33 @@ function ENT:RX_CreateRagdoll( dmg, body, offset )
 	end
 end
 
-function ENT:RX_RagdollDeath() 
-	ragdoll = self:BecomeRagdoll()
+function ENT:RX_RagdollDeath( dmg ) 
+	if not IsValid( self ) then return end
+	local vel = dmg && ( self:GetVelocity() + dmg:GetDamageForce() ) || Vector()
+	local ragdoll = self:BecomeRagdoll( dmg )
+	if IsValid( ragdoll ) then ragdoll:SetVelocity( vel ) end
 	timer.Simple( 5, function() if IsValid( ragdoll ) then ragdoll:Remove() end end)
+	return ragdoll
 end
 
 ----------------------------------------------------------------------------------------------------
 -- Purpose: Creates generic gibs
 ----------------------------------------------------------------------------------------------------
 
-function ENT:RX_GenericGibs( dmg, num )
-	if not num then num = 1 end
+function ENT:RX_GenericGibs( dmg, num, offset )
+	num = num || 1
+	
 	util.Decal("Blood", self:GetPos() , self:GetPos() - Vector(0,0,100), self )
 	self:EmitSound("d4t/sfx_gore_big"..math.random(1,7)..".ogg",70,100,0.95)
 	
-	ParticleEffect( "d_bloodsplat_big", self:GetPos() + self:OBBCenter(), self:GetAngles(), ent )
+	local pos = self:GetPos() + self:OBBCenter() + ( offset || Vector() )
+	
+	ParticleEffect( "d_bloodsplat_big", pos, self:GetAngles(), ent )
 	
 	for i = 14-num, 14 do
 		local gib = ents.Create( "prop_physics" )
 		gib:SetModel( "models/doom/monsters/gore/death1_gibs_"..i..".mdl" )
-		gib:SetPos( self:GetPos() + self:OBBCenter() + VectorRand()*30 )
+		gib:SetPos( pos + VectorRand()*30 )
 
 		self:RX_CreateGib( dmg, gib ) 
 	end

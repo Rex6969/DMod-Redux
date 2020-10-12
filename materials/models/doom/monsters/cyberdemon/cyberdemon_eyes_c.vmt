@@ -1,0 +1,5 @@
+UnlitGeneric
+{
+	$basetexture models\doom\monsters\cyberdemon\cyberdemon_eyes_c
+	$nodecal 1
+}

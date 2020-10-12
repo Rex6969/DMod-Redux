@@ -4,7 +4,7 @@ SWEP.PrintName = "Combat Shotgun"
 SWEP.Category = "DOOM"
 SWEP.Spawnable = true
 
-SWEP.Primary.Damage = 10
+SWEP.Primary.Damage = 8
 SWEP.Primary.TakeAmmo = 1
 SWEP.Primary.Ammo = "buckshot" --The ammo type will it use
 SWEP.Primary.DefaultClip = 20
@@ -12,7 +12,9 @@ SWEP.Primary.Spread = 0.75
 SWEP.Primary.NumberofShots = 10
 SWEP.Primary.Automatic = false
 SWEP.Primary.Recoil = 0.5
-SWEP.Primary.Force = 1
+SWEP.Primary.Force = 0.5
+
+SWEP.CSMuzzleFlashes = true
 
 SWEP.Secondary.ClipSize		= -1
 SWEP.Secondary.DefaultClip	= -1
@@ -28,7 +30,7 @@ SWEP.AutoSwitchTo = false
 SWEP.AutoSwitchFrom = false
 
 SWEP.ViewModelFlip		= false
-SWEP.ViewModelFOV		= 40
+SWEP.ViewModelFOV		= 45
 SWEP.ViewModel			= "models/doom/weapons/shotgun/shotgun.mdl"
 SWEP.WorldModel			= "models/doom/weapons/shotgun/w_shotgun.mdl"
 SWEP.UseHands           = false
@@ -129,9 +131,12 @@ function SWEP:PrimaryAttack()
 	
 	self:EmitSound( "doom/weapons/shotgun/shotgun_fire_"..math.random(5)..".ogg", nil, nil, nil, CHAN_WEAPON )
 	
+	self.Owner:MuzzleFlash()
+	
 	self:PlayVMSequence( "shoot" )
-	local pump_anim = self:GetTableValue( self.PumpAnimations )
-	self:PlayVMSequenceWDelay( pump_anim, self:VMSequenceDuration() )
+	self.Owner:SetAnimation( PLAYER_ATTACK1 )
+
+	self:PlayVMSequenceWDelay( self:GetTableValue( self.PumpAnimations ), self:VMSequenceDuration() )
 	
 	if self:Ammo1() < self.Primary.TakeAmmo then
 		local lastweapon = self.Owner:GetPreviousWeapon()
@@ -142,9 +147,9 @@ function SWEP:PrimaryAttack()
 		end )
 	end
 	
-	self.StartLight1:Fire("TurnOn", "", 0)
-	timer.Simple( 0.15, function() if self:IsValid() then self.StartLight1:Fire("TurnOff", "", 0) end end)
-	
+	--self.StartLight1:Fire("TurnOn", "", 0)
+	--timer.Simple( 0.15, function() if self:IsValid() then self.StartLight1:Fire("TurnOff", "", 0) end end)
+
 	-- Sounds
 
 	self:EmitSoundWDelay( "doom/weapons/shotgun/shotgun_pull.ogg", nil, nil, nil, CHAN_AUTO, 0.25 )

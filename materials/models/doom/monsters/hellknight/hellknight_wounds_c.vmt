@@ -1,0 +1,19 @@
+VertexLitGeneric
+{
+	$basetexture models\doom\monsters\hellknight\hellknight_wounds_c
+	$bumpmap models\doom\monsters\hellknight\hellknight_wounds_n
+	
+	$phong					1
+	$phongfresnelranges		"[0.5 1.2 1]"
+	$phongboost				0.25
+	
+	$envmap 				env_cubemap
+	$envmaptint 			"[0.005 0.005 0.005]"
+	$normalmapalphaenvmapmask 1
+	
+	$nodecal 1
+	
+	//$selfillum 1
+	//$selfillumtint "[10 10 10]"
+	
+}

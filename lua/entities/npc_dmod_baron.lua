@@ -1,28 +1,41 @@
-if not DrGBase then return end
+if !DrGBase then return end
 
 ----------------------------------------------------------------------------------------------------
+-- Obsolete
 
 include("modules/server/dmod_sv_util.lua")
 include("modules/server/dmod_sv_ai.lua")
 include("modules/server/dmod_sv_anim.lua")
+include("modules/server/dmod_sv_gore.lua")
 
 include("modules/client/dmod_cl_util.lua")
 AddCSLuaFile("modules/client/dmod_cl_util.lua")
 
-include("modules/dmod_meta.lua")
+--include("modules/dmod_meta.lua")
 
 ----------------------------------------------------------------------------------------------------
+-- INCLUDE START
+----------------------------------------------------------------------------------------------------
 
-ENT.Base = "drgbase_nextbot"
-DEFINE_BASECLASS( "drgbase_nextbot" )
+include( "modules/dredux/server/ai_core.lua" )
+include( "modules/dredux/server/dredux_gore.lua" )
+include( "modules/dredux/rx_table_extension.lua" )
+
+----------------------------------------------------------------------------------------------------
+-- INCLUDE END
+----------------------------------------------------------------------------------------------------
+
+ENT.Base = "ai_dmod_base"
 
 ENT.PrintName = "Baron of Hell"
 ENT.Category = "DOOM"
 
+ENT.StartHealth = 1500
+
 ENT.Models = { "models/doom/monsters/baron/baron.mdl" }
 ENT.CollisionBounds = Vector(35, 35, 145)
 
-ENT.MaxYawRate = 200
+ENT.MaxYawRate = 150
 ENT.UseWalkframes = true
 
 ENT.BehaviourType = AI_BEHAV_CUSTOM
@@ -30,21 +43,20 @@ ENT.Factions = {"FACTION_DOOM","FACTION_BRUISER"}
 
 --ENT.PossessionEnabled = true
 
-local baron_Health = 1750
-
 ENT.Conditions = {}
+ENT.State = ""
+
+ENT.GibDamage = 100
 
 if SERVER then
-	
-	ENT.Tbl_State = {}
 	
 	ENT.Tbl_Animations = {
 	
 	["Charge_N"] = {"charge"},
 	["Charge_NE"] = {"charge"},
 	["Charge_NW"] = {"charge"},
-	["Charge_E"] = {"charge_left"},
-	["Charge_W"] = {"charge_right"},
+	["Charge_W"] = {"charge_left"},
+	["Charge_E"] = {"charge_right"},
 	["Charge_S"] = {"charge_back"},
 	
 	["Melee_150"] = {"meleeforward_150_left","meleeforward_150_right"},
@@ -59,7 +71,7 @@ if SERVER then
 	["Melee_E"] = {"meleeright"},
 	["Melee_S"] = {"meleeback"},
 	
-	["Ranged_N"] = {"throw","throw_lefthand","throw_righthand"},
+	["Ranged_N"] = {"throw",--[["throw_lefthand",]]"throw_righthand"},
 	["Ranged_W"] = {"throw_left"},
 	["Ranged_E"] = {"throw_right"},
 	
@@ -68,36 +80,22 @@ if SERVER then
 	["Turn_E"] = {"turn90right"},
 	["Turn_S"] = {"turn157left"},
 	
+	["Melee_Moving"] = {"meleeforward_charge1"},
 	
+	["Pain_N"] = {"pain_leftarm", "pain_rightarm"},
+	["Pain_W"] = {"pain_left"},
+	["Pain_E"] = {"pain_right"},
+	["Pain_S"] = {"pain_left","pain_right"},
 	
-	["Melee_Moving"] = {"meleeforward_charge1"}
+	["Pain_Charge_N"] = {"pain_charge_head", "pain_charge_leftarm", "pain_charge_rightarm"},
 	
 	}
 
 	function ENT:Precache()
-		--util.PrecacheModel( "models/doom/monsters/baron/baron.mdl" )
+		util.PrecacheModel( "models/doom/monsters/baron/baron.mdl" )
 	end
 	
 	----------------------------------------------------------------------------------------------------
-
-	function ENT:CustomInitialize()
-		
-		self:Precache()
-		
-		self:SetDefaultRelationship( D_HT )
-		
-		--self:SetHullType( HULL_LARGE )
-		
-		self:SetHealth( baron_Health )
-		self:SetMaxHealth( baron_Health )
-		
-		self:SetIdleAnimation( "idle" )
-		self:SetWalkAnimation( "walk" )
-		self:SetRunAnimation( "Charge" )
-		
-		self.EnableFocusTracking = true
-		
-	end
 	
 	function ENT:OnSpawn()
 	
@@ -109,7 +107,12 @@ if SERVER then
 		
 		self.Num_MFailed = 0
 		
-		self:OverwriteState( "IDLE" )
+		self.EnableFocusTracking = true
+		
+		self:SetState( "IDLE" )
+		
+		self:SetIdleAnimation( "idle" )
+		self:SetWalkAnimation( "walk" )
 	
 	end
 	
@@ -120,12 +123,7 @@ if SERVER then
 		self:UpdateConditions()
 		self:HandleConditions()
 		
-		self:UpdateState( 1 )
-		
-		--print("fuck")
-		
-		--PrintTable( self.Conditions )
-		--print("")
+		self:UpdateState()
 	end
 
 	
@@ -155,7 +153,6 @@ if SERVER then
 				COND["COND_MOVING"] = self:IsMoving()
 				
 				COND["COND_CAN_FOCUS_TRACK"] = ( ( COND["COND_CAN_MELEE_ATTACK"] || COND["COND_CAN_RANGE_ATTACK"] ) && COND["COND_CAN_SEE_ENEMY"] && self:IsInCone( Enemy, 270 ) && self.EnableFocusTracking )
-				print( COND["COND_CAN_FOCUS_TRACK"] )
 				
 			else
 			
@@ -185,23 +182,19 @@ if SERVER then
 		if ( COND["COND_HAS_ENEMY"] && !COND["COND_IN_COMBAT"] ) then
 		
 			COND["COND_IN_COMBAT"] = true
-			self:OverwriteState( "COMBAT" )
+			self:SetState( "COMBAT" )
 			
 		elseif ( !COND["COND_HAS_ENEMY"] && COND["COND_IN_COMBAT"] ) then
 		
 			COND["COND_IN_COMBAT"] = false
 			self:StopParticles()
-			self:OverwriteState( "IDLE" )
+			self:SetState( "IDLE" )
 			
 		end
 		
 		if ( self:GetCooldown( "NEXT_FocusTrackUpdate" ) <= 0 ) then
 			self:SetNWBool( "CAN_FOCUS_TRACK", COND["COND_CAN_FOCUS_TRACK"] )
 			self:SetCooldown( "NEXT_FocusTrackUpdate", 0.5 )
-		end
-		
-		if ( self:GetCooldown( "NEXT_Turn" ) <= 0 ) then
-			self:Turn()
 		end
 		
 		local Enemy = self:GetEnemy()
@@ -215,13 +208,12 @@ if SERVER then
 				if self:GetCooldown( "NEXT_MeleeAttack" ) <= 0 then
 				
 					local DistSqr = self:GetPos():DistToSqr( Enemy:GetPos() )
-					local InMeleeAttackCone = self:FindInCone( Enemy, 45 )
 					local Anim_Key = ""
 					
 					if DistSqr < 200^2 then
 						local dir = self:CalcPosDirection( Enemy:GetPos() )
 						Anim_Key = ( dir == "N" ) && "Melee_150" || "Melee_"..dir
-					elseif InMeleeAttackCone then
+					elseif self:FindInCone( Enemy, 45 ) then
 						Anim_Key = ( DistSqr <= 300^2 ) && "Melee_300" || "Melee_450"
 						self:FaceEnemy()
 					end
@@ -230,13 +222,11 @@ if SERVER then
 						self:EmitSound( "doom/monsters/baron/vo_baron_melee_" .. math.random(3) .. ".ogg", 75 )
 					end
 					
-					self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, Anim_Key ), nil, function( self, cycle )
+					self:PlayAnimationAndMove( self:Table_ExtractAnimation( self.Tbl_Animations, Anim_Key ), nil, function( self, cycle )
 						if cycle > 0.35 && cycle < 0.5 then self:FaceEnemy() end
 					end)
 					
 					self:SetCooldown( "NEXT_MeleeAttack", 0.5 ) 
-					
-					self:Turn()
 					
 				end
 			
@@ -249,21 +239,18 @@ if SERVER then
 				if self:GetCooldown( "NEXT_LeapAttack" ) <= 0 || self.Num_MFailed >= 5 then
 				
 					local DistSqr = self:GetPos():DistToSqr( Enemy:GetPos() )
-					local InMeleeAttackCone = self:FindInCone( Enemy, 30 )
 					
-					local Anim_Key = InMeleeAttackCone && ( self:IsMoving() && "Charge_Leap" || "Stand_Leap" ) || ""
+					local Anim_Key = self:FindInCone( Enemy, 30 ) && ( self:IsMoving() && "Charge_Leap" || "Stand_Leap" ) || ""
 					
 					--self:FaceEnemy()
 					
 					self:SetVelocity( Vector( 0, 0, 0 ) )
 					self:SetNWBool( "CAN_FOCUS_TRACK", false )
-					self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, Anim_Key ), nil, function( self, cycle )
+					self:PlayAnimationAndMove( self:Table_ExtractAnimation( self.Tbl_Animations, Anim_Key ), nil, function( self, cycle )
 						if cycle < 0.1 then self:FaceEnemy() end
 					end)
 					
 					self:SetCooldown( "NEXT_LeapAttack", math.random( 30, 50 )*0.1 ) 
-					
-					self:Turn()
 					
 				end
 				
@@ -278,7 +265,9 @@ if SERVER then
 					local InRangeAttackCone = self:FindInCone( Enemy, 270 )
 				
 					local Anim_Key = InRangeAttackCone && ( "Ranged_"..self:CalcPosDirection( Enemy:GetPos() ) ) || ""
-					self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, Anim_Key ), nil, function( self, cycle )
+					if Anim_Key then self:SetVelocity( Vector( 0, 0, 0 ) ) end
+					
+					self:PlayAnimationAndMove( self:Table_ExtractAnimation( self.Tbl_Animations, Anim_Key ), nil, function( self, cycle )
 						if cycle > 0.5 then self:FaceEnemy() end
 					end)
 					
@@ -287,12 +276,15 @@ if SERVER then
 						self:SetCooldown( "NEXT_LeapAttack", math.random( 5, 20 )*0.1 ) 
 						self:DelayAllyRangeAttack()
 					end
-					
-					self:Turn()
 				
 				end
 				
 			end
+			
+			if ( self:GetCooldown( "NEXT_Turn" ) <= 0 ) then
+				self:Turn()
+			end
+		
 			
 		end
 		
@@ -368,6 +360,8 @@ if SERVER then
 				viewpunch = Angle(20, math.random(-10, 10), 0)
 				})
 				
+				self:SetVelocity( self:GetUp()* -300 )
+				
 				self:StopParticles()
 				ParticleEffect("d_baron_shockwave", self:GetPos() + self:GetForward()*90, self:GetAngles() )
 				
@@ -385,7 +379,7 @@ if SERVER then
 				self:StopParticles()
 				self:EmitSound( "doom/monsters/baron/throw_fireball.ogg", 85 )
 				
-				local fireball = self:CreateProjectile( "ent_dmod_baron_fireball" )
+				local fireball = self:CreateProjectile( "proj_dmod_baron_fireball" )
 				fireball:SetPos( self:GetAttachment( self:LookupAttachment(att) ).Pos )
 				
 				local force = self:AimProjectile( fireball, 1200 )
@@ -393,7 +387,7 @@ if SERVER then
 				local phys = fireball:GetPhysicsObject()
 				
 				if IsValid( phys ) then
-					fireball:SetVelocity( force + Enemy:GetVelocity()*0.1 + VectorRand()*add )
+					fireball:SetVelocity( force + Enemy:GetVelocity()*0.25 + VectorRand()*add )
 				end
 				
 			end
@@ -450,7 +444,7 @@ if SERVER then
 		
 		end
 		
-		print( event[1], " ", event[2] )
+		--print( event[1], " ", event[2] )
 		
 	end
 	
@@ -459,14 +453,111 @@ if SERVER then
 	function ENT:Turn()
 	
 		if not self:GetMovementTarget() then return end
+
+		if ( self:HasEnemy() && self.Conditions["COND_CAN_SEE_ENEMY"] ) then self:SetMovementTarget( self:GetEnemy():GetPos() ) end
 	
 		local dir = self:CalcPosDirection( self:GetMovementTarget() )
 		local Anim_Key = !(dir == "N" || dir == "NE" || dir == "NW") && ( self:IsRunning() && "Turn_Charge_"..dir || "Turn_"..dir ) || ""
 		if Anim_Key ~= "" then
 			self:SetCooldown( "NEXT_Turn", math.random( 5, 15 ) * 0.1 )
-			self:PlayAnimationAndMove( self:ExtractAnimation( self.Tbl_Animations, Anim_Key ) )
+			self:PlayAnimationAndMove( self:Table_ExtractAnimation( self.Tbl_Animations, Anim_Key ) )
 		end
 
+	end
+	
+	----------------------------------------------------------------------------------------------------
+	
+	function ENT:DeathSounds()
+		self:SetSkin( 1 )
+	end
+	
+	local HITGROUP_HEAD = 8
+	
+	function ENT:OnTakeDamage( dmg, hitgroup )
+		
+		if self:Health() < 600 then self:SetSkin( 1 ) end
+		
+		self:Death( dmg, hitgroup )
+		
+		if ( dmg:GetDamage() > 100 && self:GetCooldown( "NEXT_Pain" ) <= 0 && math.random( 3 ) == 1 && !self:IsDead() ) then
+
+			self:StopParticles()
+			
+			self:SetSkin( 1 )
+			self:DOOM_ApplyWound( "Head" )
+			self:DOOM_ApplyWound( "Body" )
+			self:DOOM_ApplyWound( "LeftArm" )
+			self:DOOM_ApplyWound( "RightArm" )
+			self:DOOM_ApplyWound( "LeftLeg" )
+			self:DOOM_ApplyWound( "RightLeg" )
+		
+			if !self.Conditions["COND_IN_AIR"] then
+				if ( self:IsRunning() ) then
+					self:CallInCoroutineOverride( function() self:PlayAnimationAndMove( self:Table_ExtractAnimation( self.Tbl_Animations, "Pain_Charge_N" ), 1 ) end )
+				else
+					self:CallInCoroutineOverride( function() self:PlayAnimationAndMove( self:Table_ExtractAnimation( self.Tbl_Animations, "Pain_"..self:CalcPosDirection( dmg:GetDamagePosition() ) ), 1 ) end )
+				end
+			end
+			
+			self:SetCooldown( NEXT_Pain, math.random( 30, 45 ) * 0.1 )
+			
+		end
+		
+	end
+	
+	function ENT:Death(dmg, hitgroup)
+		if dmg:GetDamage() > self:Health() and self:Alive() then
+			self:SetNW2Bool("DrGBaseDead", true)
+			self:SetCollisionGroup( COLLISION_GROUP_DEBRIS )
+			if dmg:GetDamage() >= self.GibDamage or dmg:GetDamageType() == DMG_BLAST then
+				self:HandleDeath( dmg, hitgroup )
+			else
+				self:DeathSounds()
+				local ragdoll = self:RX_RagdollDeath( dmg )
+				ragdoll:DOOM_ApplyWound( "Head" )
+				ragdoll:DOOM_ApplyWound( "Body" )
+				ragdoll:DOOM_ApplyWound( "LeftArm" )
+				ragdoll:DOOM_ApplyWound( "RightArm" )
+				ragdoll:DOOM_ApplyWound( "LeftLeg" )
+				ragdoll:DOOM_ApplyWound( "RightLeg" )
+				
+			end
+		end
+	
+	end
+	
+	function ENT:HandleDeath( dmg, hitgroup )
+	
+		local Anim_Key
+		local hitgroup = self:RX_Damage_FixHitGroup( dmg, hitgroup )
+		local changedmodel = false
+	
+		self:SetSkin( 1 )
+		self:StopParticles()
+		
+		self:SetNWBool( "CAN_FOCUS_TRACK", false )
+		
+		if hitgroup == 8 then
+			self:SetModel( "models/doom/monsters/baron/gore/baron_death2_body.mdl" )
+			changedmodel = true
+			self:SetSkin( 1 )
+			self:RX_GenericGibs( dmg, 10, Vector( 0, 0, 70 ) )
+			Anim_Key = "death_classic_head"
+		else
+			self:SetModel( "models/doom/monsters/baron/gore/baron_death7_body.mdl" )
+			changedmodel = true
+			self:SetSkin( 1 )
+			self:RX_GenericGibs( dmg, 13, Vector( 0, 0, 20 )  )
+			Anim_Key = self:Table_Get( {"death_classic_gut", "death_classic_chest"} )
+		end
+		
+		if ( Anim_Key && !self.Conditions["COND_IN_AIR"] ) then 
+			self:CallInCoroutineOverride( function() 
+				self:PlayAnimationAndMove( Anim_Key, 1 ) 
+				local ragdoll = self:RX_RagdollDeath()
+			end )
+		end
+		
 	end
 	
 	----------------------------------------------------------------------------------------------------
@@ -479,24 +570,15 @@ if SERVER then
 		elseif self:IsRunning() then
 
 			local Anim_Key = "Charge_"..self:CalcPosDirection( self:GetPos() + self:GetVelocity() )
-			return self:ExtractAnimation( self.Tbl_Animations, Anim_Key ), self.RunAnimRate
+			return self:Table_ExtractAnimation( self.Tbl_Animations, Anim_Key ), self.RunAnimRate
 		
 		elseif self:IsMoving() then return self.WalkAnimation, self.WalkAnimRate
 		else return self.IdleAnimation, 1 end
 	end
 	
 	function ENT:BodyMoveXY( options )
-	
 		local velocity = self:GetVelocity()
-		local options = options || {}
-		if options.rate == nil then options.rate = true end
-	
-		if ( options.rate && !self:IsPlayingAnimation() && self:IsOnGround() && !self:IsClimbing() ) then
-			if not velocity:IsZero() then
-				self:SetPlaybackRate(1)
-			end
-		end
-	
+		return ( !self:IsPlayingAnimation() && self:IsOnGround() && !self:IsClimbing() && !velocity:IsZero() ) && self:SetPlaybackRate(1) || true
 	end
 	
 	function ENT:DelayAllyRangeAttack()
@@ -516,9 +598,7 @@ function ENT:CustomThink()
 
 	local CanFocusTrack = self:GetNWBool( "CAN_FOCUS_TRACK", false )
 	
-	--print( CanFocusTrack )
-
-	if ( CLIENT ) then
+	if ( CLIENT && !self:IsDead() ) then
 	
 		if ( CanFocusTrack && self:HasEnemy() && !self:IsAIDisabled() ) then
 			local EnemyPos = self:GetEnemy():GetPos()
@@ -536,6 +616,30 @@ function ENT:CustomThink()
 	end
 	
 end
+
+local BaronProjectile = {}
+
+	BaronProjectile.Type = "anim"
+	BaronProjectile.Base = "proj_drg_default"
+	
+	BaronProjectile.Gravity = false
+	BaronProjectile.AttachEffects = {"d_baron_fireball"}
+	BaronProjectile.OnContactEffects = {"d_baron_fireballexplosion"}
+	BaronProjectile.OnContactDecals = {"Scorch"}
+	BaronProjectile.OnContactDelete = 0
+	
+	
+	function BaronProjectile:CustomInitialize()
+		self:DynamicLight( Color( 0, 255, 0 ), 300, 0.5 )
+	end
+	
+	function BaronProjectile:OnContact( ent )
+		self:EmitSound( "doom/monsters/baron/sfx_baron_fireball"..math.random( 5 )..".ogg", 90 )
+		util.ScreenShake( self:GetPos(), 5, 5, 0.5, 200 )
+		self:DealDamage( ent, ( ent:IsPlayer() && math.random( 34, 35 ) || math.random( 34, 35 )*2 ), DMG_BLAST )
+	end
+
+	scripted_ents.Register( BaronProjectile, "proj_dmod_baron_fireball" )
 
 
 AddCSLuaFile()

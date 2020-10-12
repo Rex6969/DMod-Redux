@@ -6,14 +6,19 @@ VertexLitGeneric
 	
 	$phong					1
 	$phongfresnelranges		"[0.5 1.2 1]"
-	$phongboost				1
+	$phongboost				0.5
 	
 	$envmap 				env_cubemap
 	$envmaptint 			"[0.02 0.02 0.02]"
 	$normalmapalphaenvmapmask 1
 	
-	$rimlight				1
-	$rimlightexponent       8
-	$rimlightboost          0.2
-	$rimmask				1
+	//$rimlight				1
+	$rimlightexponent       3
+	$rimlightboost          0.05
+	
+	$nodecal 1
+	
+	$selfillum 1
+	//$selfillumtint "[10 10 10]"
+	
 }

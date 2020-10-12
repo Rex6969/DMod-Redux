@@ -4,7 +4,7 @@ SWEP.PrintName = "Rocket Launcher"
 SWEP.Category = "DOOM"
 SWEP.Spawnable = true
 
-SWEP.Primary.Projectile = "ent_dmod_rocket"
+SWEP.Primary.Projectile = "proj_dmod_rocket"
 SWEP.Primary.Ammo = "rpg_round"
 SWEP.Primary.TakeAmmo = 1
 SWEP.Primary.DefaultClip = 10
@@ -35,9 +35,9 @@ SWEP.Reticle = {}
 
 function SWEP:OnInitialize()
 
-	--[[self:SetWeaponHoldType( "rpg" )
+	self:SetWeaponHoldType( "rpg" )
 	
-	if SERVER then
+	--[[if SERVER then
 	
 		self.StartLight1 = ents.Create( "light_dynamic" )
 		self.StartLight1:SetKeyValue("brightness", "3")
@@ -130,42 +130,6 @@ function SWEP:PrimaryAttack()
 			self:PlayVMSequence( "idle_empty" )
 		end )
 	end
-
-	--[[if self:Ammo1() < self.Primary.TakeAmmo then
-		self:EmitSound( "Weapon_Pistol.Empty" )
-		self:SetNextPrimaryFire( CurTime() + 0.2 )
-		self:PlayVMSequence( "dryfire" )
-		return 
-	end
-	
-	local vm = self.Owner:GetViewModel()
-	ParticleEffectAttach( "d_muzzleflash", PATTACH_POINT_FOLLOW, vm, vm:LookupAttachment( "muzzle" ) )
-	
-	self:TakePrimaryAmmo( self.Primary.TakeAmmo )
-	self:BulletAttack()
-	
-	self:EmitSound( "doom/weapons/shotgun/shotgun_fire_"..math.random(5)..".ogg", nil, nil, nil, CHAN_WEAPON )
-	
-	self:PlayVMSequence( "shoot" )
-	
-	-- Pump
-	
-	timer.Simple( self:VMSequenceDuration()+0.025, function()
-		if not IsValid(self) then return end
-		self:PlayVMSequence( self:GetTableValue( self.PumpAnimations ) )
-	end)
-	
-	-- Sounds
-
-	timer.Simple( 0.25, function()
-		if not IsValid(self) then return end
-		self:EmitSound( "doom/weapons/shotgun/shotgun_pull.ogg", nil, nil, nil, CHAN_AUTO )
-	end)
-	
-	timer.Simple( 0.45, function()
-		if not IsValid(self) then return end
-		self:EmitSound( "doom/weapons/shotgun/shotgun_push.ogg", nil, nil, nil, CHAN_AUTO )
-	end)]]
 	
 	-- Recoil
 	
@@ -183,3 +147,30 @@ function SWEP:DoDrawCrosshair( x, y )
 	surface.DrawTexturedRectRotated( ScrW()/2, ScrH()/2, 150, 150, 0 )
 	return true
 end
+
+----------------------------------------------------------------------------------------------------
+
+local Rocket = {}
+
+	Rocket.Type = "anim"
+	Rocket.Base = "proj_drg_default"
+	
+	Rocket.Models = {"models/weapons/w_missile_launch.mdl"}
+	Rocket.Gravity = false
+	Rocket.OnContactEffects = {"d_rpgrocket_explosion"}
+	Rocket.OnContactDecals = {"Scorch"}
+	Rocket.OnContactDelete = 0
+	
+	function Rocket:CustomInitialize()
+		ParticleEffectAttach( "d_rpgrocket_trail", 1, self, 0)
+		self:DynamicLight( Color( 255, 120, 0 ), 400, 0.75 )
+	end
+	
+	function Rocket:OnContact( ent )
+		self:EmitSound( "doom/weapons/rocketlauncher/rocket_explo_"..math.random( 6 )..".ogg", 90, nil, nil, CHAN_WEAPON )
+		util.ScreenShake( self:GetPos(), 50, 5, 0.5, 400 )
+		self:DealDamage( ent,  math.random( 110, 130 ), DMG_BLAST )
+		self:RadiusDamage( math.random( 110, 130 ) , DMG_BLAST, 100, function(ent) return ent end)
+	end
+
+	scripted_ents.Register( Rocket, "proj_dmod_rocket" )

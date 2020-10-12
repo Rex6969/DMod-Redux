@@ -171,8 +171,8 @@ function SWEP:ProjectileAttack( proj, att, vel )
 		vel = ( targ.HitPos - att ):GetNormalized() * vel
 	end
 	
-	debugoverlay.Cross( targ.HitPos, 10, 3 )
-	debugoverlay.Cross( pos + targ.HitPos:GetNormalized() + Vector( 0, 0, 10 ), 10, 3 )
+	--debugoverlay.Cross( targ.HitPos, 10, 3 )
+	--debugoverlay.Cross( pos + targ.HitPos:GetNormalized() + Vector( 0, 0, 10 ), 10, 3 )
 
 	local cur_proj = ents.Create( proj )
 	cur_proj:SetPos( att )

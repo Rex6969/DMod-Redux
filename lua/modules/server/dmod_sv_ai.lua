@@ -9,6 +9,11 @@ function ENT:HasCondition( cond )
 	return self.Conditions[cond]
 end
 
+function ENT:OnTakeDamage( dmg, hitgroup )
+	if self:Death( dmg, hitgroup ) then return end
+	self:CustomOnTakeDamage( dmg, hitgroup )
+end
+
 -- Experimental state machine implementation by Rex, 2020.
 
 -- Purpose:
@@ -45,14 +50,6 @@ end
 function ENT:State_Fail() -- State version of SCHED_FAIL
 	if !self:GetInState() then
 		--self:Wait(1)
-		self:AddState( "Idle" )
-	end
-end
-
-
-function ENT:State_Forced_Go() -- State version of TASK_FAIL
-	if !self:GetInState() then
-		self:Wait(1)
 		self:AddState( "Idle" )
 	end
 end

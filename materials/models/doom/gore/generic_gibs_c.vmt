@@ -1,10 +1,10 @@
 VertexLitGeneric
 {
 	$basetexture "models\doom\gore\generic_gibs_c"
-	$bumpmap "models\util\util_n"
+	$bumpmap "models\doom\gore\generic_gibs_n"
 
 	$phong 1
-	$phongexponent 40
+	$phongexponent 80
 	$phongfresnelranges	"[0.5 1.2 1.5]"
-	$phongboost	0.1
+	$phongboost	0.01
 }

@@ -1,9 +1,9 @@
 
 if SERVER then
-
 	CreateConVar( "dmod_limitpickupammo", "0", FCVAR_ARCHIVE )
-
 end
+
+include( "autorun/dmod_proj_decl.lua" )
 
 ----------------------------------------------------------------------------------------------------
 -- Blood

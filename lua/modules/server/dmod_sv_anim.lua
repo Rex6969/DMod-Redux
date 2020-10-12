@@ -47,7 +47,7 @@ if SERVER then
 		if isstring(anim) then
 			local seq = self:LookupSequence(anim)
 			validAnim = seq ~= -1
-			if validAnim and (self:GetCycle() > 0.9 or seq ~= current) then
+			if validAnim and (self:GetCycle() > 0.95 or seq ~= current) then
 				if CallOnAnimChange(self, current, seq) ~= false then
 				CallOnAnimChanged(self, current, seq)
 				ResetSequence(self, seq)
